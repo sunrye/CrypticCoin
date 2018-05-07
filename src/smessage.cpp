@@ -54,6 +54,7 @@ Notes:
 #include "init.h" // pwalletMain
 #include "txdb.h"
 
+#include "primitives/transaction.h"
 
 #include "lz4/lz4.c"
 

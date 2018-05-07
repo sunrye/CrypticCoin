@@ -10,6 +10,8 @@
 #include "base58.h"
 #include "stealth.h"
 
+#include "primitives/transaction.h"
+
 using namespace json_spirit;
 using namespace std;
 

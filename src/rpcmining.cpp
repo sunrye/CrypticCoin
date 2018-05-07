@@ -8,6 +8,7 @@
 #include "txdb.h"
 #include "init.h"
 #include "bitcoinrpc.h"
+#include "primitives/transaction.h"
 
 using namespace json_spirit;
 using namespace std;

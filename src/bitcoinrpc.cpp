@@ -10,6 +10,7 @@
 #include "base58.h"
 #include "bitcoinrpc.h"
 #include "db.h"
+#include "primitives/transaction.h"
 
 #undef printf
 #include <boost/asio.hpp>

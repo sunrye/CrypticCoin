@@ -105,6 +105,7 @@ BITCOIN_CORE_H = \
   mruset.h \
   netbase.h \
   net.h \
+  primitives/transaction.h \
   protocol.h \
   script.h \
   scrypt.h \
@@ -179,6 +180,7 @@ libbitcoin_common_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_common_a_SOURCES = \
   key.cpp \
   netbase.cpp \
+  primitives/transaction.cpp \
   protocol.cpp \
   script.cpp \
   hash.cpp \

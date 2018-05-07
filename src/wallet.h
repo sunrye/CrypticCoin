@@ -18,6 +18,7 @@
 #include "ui_interface.h"
 #include "util.h"
 #include "walletdb.h"
+#include "primitives/transaction.h"
 
 #include <boost/algorithm/string.hpp>
 
