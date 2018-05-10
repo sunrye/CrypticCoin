@@ -2,6 +2,8 @@
 #define ZC_NOTE_H_
 
 #include "uint256.h"
+#include "serialize.h"
+
 #include "Zcash.h"
 #include "Address.hpp"
 #include "NoteEncryption.hpp"
@@ -37,22 +39,19 @@ public:
 
     Note note(const PaymentAddress& addr) const;
 
-    ADD_SERIALIZE_METHODS;
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(leadingByte);
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        unsigned char leadingByte = 0x00;
-        READWRITE(leadingByte);
+         if (leadingByte != 0x00) {
+             throw std::ios_base::failure("lead byte of NotePlaintext is not recognized");
+         }
 
-        if (leadingByte != 0x00) {
-            throw std::ios_base::failure("lead byte of NotePlaintext is not recognized");
-        }
-
-        READWRITE(value);
-        READWRITE(rho);
-        READWRITE(r);
-        READWRITE(memo);
-    }
+         READWRITE(value);
+         READWRITE(rho);
+         READWRITE(r);
+         READWRITE(memo);
+        )
 
     static NotePlaintext decrypt(const ZCNoteDecryption& decryptor,
                                  const ZCNoteDecryption::Ciphertext& ciphertext,

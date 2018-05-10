@@ -1,9 +1,10 @@
 #include <stdexcept>
 
 #include <boost/foreach.hpp>
+#include <openssl/sha.h>
 
 #include "zcash/IncrementalMerkleTree.hpp"
-#include "crypto/sha256.h"
+
 #include "zcash/util.h"
 
 namespace libzcash {
@@ -12,10 +13,15 @@ SHA256Compress SHA256Compress::combine(const SHA256Compress& a, const SHA256Comp
 {
     SHA256Compress res = SHA256Compress();
 
-    CSHA256 hasher;
-    hasher.Write(a.begin(), 32);
-    hasher.Write(b.begin(), 32);
-    hasher.FinalizeNoPadding(res.begin());
+    unsigned char blob[64];
+    SHA256_CTX c;
+
+    memcpy(&blob[0], a.begin(), 32);
+    memcpy(&blob[32], b.begin(), 32);
+
+    SHA256_Init(&c);
+    SHA256_Transform(&c, &blob[0]);
+    SHA256_Final(res.begin(), &c);
 
     return res;
 }

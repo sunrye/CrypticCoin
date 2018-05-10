@@ -10,20 +10,20 @@
 
 #include "Zcash.h"
 
-namespace libzcash {
+namespace libzcash
+{
 
-class MerklePath {
+class MerklePath
+{
 public:
     std::vector<std::vector<bool>> authentication_path;
     std::vector<bool> index;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(authentication_path);
-        READWRITE(index);
-    }
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(authentication_path);
+         READWRITE(index);
+        )
 
     MerklePath() { }
 
@@ -32,15 +32,19 @@ public:
 };
 
 template<size_t Depth, typename Hash>
-class EmptyMerkleRoots {
+class EmptyMerkleRoots
+{
 public:
-    EmptyMerkleRoots() {
+    EmptyMerkleRoots()
+    {
         empty_roots.at(0) = Hash();
-        for (size_t d = 1; d <= Depth; d++) {
+        for (size_t d = 1; d <= Depth; d++)
+        {
             empty_roots.at(d) = Hash::combine(empty_roots.at(d-1), empty_roots.at(d-1));
         }
     }
-    Hash empty_root(size_t depth) {
+    Hash empty_root(size_t depth)
+    {
         return empty_roots.at(depth);
     }
     template <size_t D, typename H>
@@ -52,7 +56,8 @@ private:
 
 template<size_t Depth, typename Hash>
 bool operator==(const EmptyMerkleRoots<Depth, Hash>& a,
-                const EmptyMerkleRoots<Depth, Hash>& b) {
+                const EmptyMerkleRoots<Depth, Hash>& b)
+{
     return a.empty_roots == b.empty_roots;
 }
 
@@ -60,8 +65,8 @@ template<size_t Depth, typename Hash>
 class IncrementalWitness;
 
 template<size_t Depth, typename Hash>
-class IncrementalMerkleTree {
-
+class IncrementalMerkleTree
+{
 friend class IncrementalWitness<Depth, Hash>;
 
 public:
@@ -69,7 +74,8 @@ public:
 
     IncrementalMerkleTree() { }
 
-    size_t DynamicMemoryUsage() const {
+    size_t DynamicMemoryUsage() const
+    {
         return 32 + // left
                32 + // right
                parents.size() * 32; // parents
@@ -78,27 +84,28 @@ public:
     size_t size() const;
 
     void append(Hash obj);
-    Hash root() const {
+    Hash root() const
+    {
         return root(Depth, std::deque<Hash>());
     }
     Hash last() const;
 
-    IncrementalWitness<Depth, Hash> witness() const {
+    IncrementalWitness<Depth, Hash> witness() const
+    {
         return IncrementalWitness<Depth, Hash>(*this);
     }
 
-    ADD_SERIALIZE_METHODS;
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(left);
+         READWRITE(right);
+         READWRITE(parents);
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(left);
-        READWRITE(right);
-        READWRITE(parents);
+         wfcheck();
+        )
 
-        wfcheck();
-    }
-
-    static Hash empty_root() {
+    static Hash empty_root()
+    {
         return emptyroots.empty_root(Depth);
     }
 
@@ -122,7 +129,8 @@ private:
 
 template<size_t Depth, typename Hash>
 bool operator==(const IncrementalMerkleTree<Depth, Hash>& a,
-                const IncrementalMerkleTree<Depth, Hash>& b) {
+                const IncrementalMerkleTree<Depth, Hash>& b)
+{
     return (a.emptyroots == b.emptyroots &&
             a.left == b.left &&
             a.right == b.right &&
@@ -130,39 +138,41 @@ bool operator==(const IncrementalMerkleTree<Depth, Hash>& a,
 }
 
 template <size_t Depth, typename Hash>
-class IncrementalWitness {
+class IncrementalWitness
+{
 friend class IncrementalMerkleTree<Depth, Hash>;
 
 public:
     // Required for Unserialize()
     IncrementalWitness() {}
 
-    MerklePath path() const {
+    MerklePath path() const
+    {
         return tree.path(partial_path());
     }
 
     // Return the element being witnessed (should be a note
     // commitment!)
-    Hash element() const {
+    Hash element() const
+    {
         return tree.last();
     }
 
-    Hash root() const {
+    Hash root() const
+    {
         return tree.root(Depth, partial_path());
     }
 
     void append(Hash obj);
 
-    ADD_SERIALIZE_METHODS;
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(tree);
+         READWRITE(filled);
+         READWRITE(cursor);
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(tree);
-        READWRITE(filled);
-        READWRITE(cursor);
-
-        cursor_depth = tree.next_depth(filled.size());
-    }
+         cursor_depth = tree.next_depth(filled.size());
+        )
 
     template <size_t D, typename H>
     friend bool operator==(const IncrementalWitness<D, H>& a,
@@ -179,14 +189,16 @@ private:
 
 template<size_t Depth, typename Hash>
 bool operator==(const IncrementalWitness<Depth, Hash>& a,
-                const IncrementalWitness<Depth, Hash>& b) {
+                const IncrementalWitness<Depth, Hash>& b)
+{
     return (a.tree == b.tree &&
             a.filled == b.filled &&
             a.cursor == b.cursor &&
             a.cursor_depth == b.cursor_depth);
 }
 
-class SHA256Compress : public uint256 {
+class SHA256Compress : public uint256
+{
 public:
     SHA256Compress() : uint256() {}
     SHA256Compress(uint256 contents) : uint256(contents) { }

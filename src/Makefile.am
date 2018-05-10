@@ -116,6 +116,7 @@ BITCOIN_CORE_H = \
   sync.h \
   ui_interface.h \
   uint256.h \
+  uint252.h \
   util.h \
   version.h \
   xxhash/xxhash.h \

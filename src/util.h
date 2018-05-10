@@ -196,6 +196,9 @@ bool ATTR_WARN_PRINTF(1,2) error(const char *format, ...);
  */
 #define printf OutputDebugStringF
 
+const boost::filesystem::path &ZC_GetParamsDir();
+bool TryCreateDirectory(const boost::filesystem::path& p);
+
 void LogException(std::exception* pex, const char* pszThread);
 void PrintException(std::exception* pex, const char* pszThread);
 void PrintExceptionContinue(std::exception* pex, const char* pszThread);

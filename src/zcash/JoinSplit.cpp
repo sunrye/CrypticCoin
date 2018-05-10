@@ -1,6 +1,6 @@
 #include "JoinSplit.hpp"
 #include "prf.h"
-#include "sodium.h"
+//#include "sodium.h"
 
 #include "zcash/util.h"
 
@@ -14,9 +14,9 @@
 #include <libsnark/zk_proof_systems/ppzksnark/r1cs_ppzksnark/r1cs_ppzksnark.hpp>
 #include <libsnark/gadgetlib1/gadgets/hashes/sha256/sha256_gadget.hpp>
 #include <libsnark/gadgetlib1/gadgets/merkle_tree/merkle_tree_check_read_gadget.hpp>
-#include "tinyformat.h"
-#include "sync.h"
-#include "amount.h"
+//#include "tinyformat.h"
+//#include "sync.h"
+//#include "amount.h"
 
 using namespace libsnark;
 

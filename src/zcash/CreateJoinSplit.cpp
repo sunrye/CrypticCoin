@@ -19,7 +19,8 @@ int main(int argc, char **argv)
 
     // construct a proof.
 
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < 5; i++)
+    {
         uint256 anchor = ZCIncrementalMerkleTree().root();
         uint256 pubKeyHash;
 

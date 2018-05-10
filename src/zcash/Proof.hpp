@@ -22,12 +22,10 @@ public:
     template<typename libsnark_Fq>
     libsnark_Fq to_libsnark_fq() const;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(data);
-    }
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(data);
+        )
 
     friend bool operator==(const Fq& a, const Fq& b)
     {
@@ -55,12 +53,10 @@ public:
     template<typename libsnark_Fq2>
     libsnark_Fq2 to_libsnark_fq2() const;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(data);
-    }
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(data);
+        )
 
     friend bool operator==(const Fq2& a, const Fq2& b)
     {
@@ -90,26 +86,22 @@ public:
     template<typename libsnark_G1>
     libsnark_G1 to_libsnark_g1() const;
 
-    ADD_SERIALIZE_METHODS;
+    IMPLEMENT_SERIALIZE
+        (
+         unsigned char leadingByte = G1_PREFIX_MASK;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        unsigned char leadingByte = G1_PREFIX_MASK;
+         if (y_lsb)
+             leadingByte |= 1;
 
-        if (y_lsb) {
-            leadingByte |= 1;
-        }
+         READWRITE(leadingByte);
 
-        READWRITE(leadingByte);
+         if ((leadingByte & (~1)) != G1_PREFIX_MASK)
+             throw std::ios_base::failure("lead byte of G1 point not recognized");
 
-        if ((leadingByte & (~1)) != G1_PREFIX_MASK) {
-            throw std::ios_base::failure("lead byte of G1 point not recognized");
-        }
+         y_lsb = leadingByte & 1;
 
-        y_lsb = leadingByte & 1;
-
-        READWRITE(x);
-    }
+         READWRITE(x);
+        )
 
     friend bool operator==(const CompressedG1& a, const CompressedG1& b)
     {
@@ -140,26 +132,22 @@ public:
     template<typename libsnark_G2>
     libsnark_G2 to_libsnark_g2() const;
 
-    ADD_SERIALIZE_METHODS;
+    IMPLEMENT_SERIALIZE
+        (
+         unsigned char leadingByte = G2_PREFIX_MASK;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        unsigned char leadingByte = G2_PREFIX_MASK;
+         if (y_gt)
+             leadingByte |= 1;
 
-        if (y_gt) {
-            leadingByte |= 1;
-        }
+         READWRITE(leadingByte);
 
-        READWRITE(leadingByte);
+         if ((leadingByte & (~1)) != G2_PREFIX_MASK)
+             throw std::ios_base::failure("lead byte of G2 point not recognized");
 
-        if ((leadingByte & (~1)) != G2_PREFIX_MASK) {
-            throw std::ios_base::failure("lead byte of G2 point not recognized");
-        }
+         y_gt = leadingByte & 1;
 
-        y_gt = leadingByte & 1;
-
-        READWRITE(x);
-    }
+         READWRITE(x);
+        )
 
     friend bool operator==(const CompressedG2& a, const CompressedG2& b)
     {
@@ -201,19 +189,17 @@ public:
 
     static ZCProof random_invalid();
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        READWRITE(g_A);
-        READWRITE(g_A_prime);
-        READWRITE(g_B);
-        READWRITE(g_B_prime);
-        READWRITE(g_C);
-        READWRITE(g_C_prime);
-        READWRITE(g_K);
-        READWRITE(g_H);
-    }
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(g_A);
+         READWRITE(g_A_prime);
+         READWRITE(g_B);
+         READWRITE(g_B_prime);
+         READWRITE(g_C);
+         READWRITE(g_C_prime);
+         READWRITE(g_K);
+         READWRITE(g_H);
+        )
 
     friend bool operator==(const ZCProof& a, const ZCProof& b)
     {
