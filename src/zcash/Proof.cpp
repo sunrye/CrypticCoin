@@ -1,6 +1,6 @@
 #include "Proof.hpp"
 
-// #include "crypto/common.h"
+#include "crypto/common.h"
 
 #include <boost/static_assert.hpp>
 #include <libsnark/common/default_types/r1cs_ppzksnark_pp.hpp>
@@ -35,7 +35,7 @@ bigint<8> fq2_to_bigint(const curve_Fq2 &e)
 
 // Writes a bigint in big endian
 template<mp_size_t LIMBS>
-void write_bigint(base_blob<8 * LIMBS * sizeof(mp_limb_t)> &blob, const bigint<LIMBS> &val)
+void write_bigint(base_uint<8 * LIMBS * sizeof(mp_limb_t)> &blob, const bigint<LIMBS> &val)
 {
     auto ptr = blob.begin();
     for (ssize_t i = LIMBS-1; i >= 0; i--, ptr += 8) {
@@ -45,7 +45,7 @@ void write_bigint(base_blob<8 * LIMBS * sizeof(mp_limb_t)> &blob, const bigint<L
 
 // Reads a bigint from big endian
 template<mp_size_t LIMBS>
-bigint<LIMBS> read_bigint(const base_blob<8 * LIMBS * sizeof(mp_limb_t)> &blob)
+bigint<LIMBS> read_bigint(const base_uint<8 * LIMBS * sizeof(mp_limb_t)> &blob)
 {
     bigint<LIMBS> ret;
 

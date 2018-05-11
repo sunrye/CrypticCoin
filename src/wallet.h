@@ -11,6 +11,7 @@
 #include <stdlib.h>
 
 #include "coincontrol.h"
+#include "amount.h"
 #include "main.h"
 #include "key.h"
 #include "keystore.h"

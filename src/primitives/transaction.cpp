@@ -3,13 +3,13 @@
 #include "txdb.h"
 #include "main.h"
 #include "checkpoints.h"
+#include "amount.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
 using namespace std;
 
-bool MoneyRange(int64 nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 
 bool CTransaction::CheckTransaction() const
 {
@@ -240,6 +240,13 @@ int64 CTransaction::GetValueIn(const MapPrevTx& inputs) const
 
 }
 
+bool CTransaction::AllowFree(double dPriority)
+{
+    // Large (in bytes) low-priority (new, small-coin) transactions
+    // need a fee.
+    return dPriority > COIN * 144 / 250;
+}
+
 unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
 {
     if (IsCoinBase())
@@ -253,6 +260,18 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
             nSigOps += prevout.scriptPubKey.GetSigOpCount(vin[i].scriptSig);
     }
     return nSigOps;
+}
+
+int64 CTransaction::GetValueOut() const
+{
+    int64 nValueOut = 0;
+    BOOST_FOREACH(const CTxOut& txout, vout)
+    {
+        nValueOut += txout.nValue;
+        if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
+            throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
+    }
+    return nValueOut;
 }
 
 bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs,

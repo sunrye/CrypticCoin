@@ -4,6 +4,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "alert.h"
+#include "amount.h"
 #include "checkpoints.h"
 #include "db.h"
 #include "txdb.h"

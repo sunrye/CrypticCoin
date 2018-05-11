@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "addresstablemodel.h"
+#include "amount.h"
 #include "base58.h"
 #include "key.h"
 #include "main.h"

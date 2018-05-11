@@ -7,6 +7,7 @@
 #include "multisiginputentry.h"
 #include "ui_multisiginputentry.h"
 #include "main.h"
+#include "amount.h"
 #include "script.h"
 #include "util.h"
 #include "wallet.h"

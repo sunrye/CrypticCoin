@@ -1,6 +1,7 @@
 #include "blockbrowser.h"
 #include "ui_blockbrowser.h"
 #include "main.h"
+#include "amount.h"
 #include "wallet.h"
 #include "base58.h"
 #include "clientmodel.h"

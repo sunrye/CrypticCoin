@@ -1,5 +1,5 @@
 #include "prf.h"
-// #include "crypto/sha256.h"
+#include "crypto/sha256.h"
 
 uint256 PRF(bool a, bool b, bool c, bool d,
             const uint252& x,
