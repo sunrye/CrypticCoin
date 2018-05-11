@@ -5,6 +5,7 @@
 #include "main.h"
 #include "wallet.h"
 #include "util.h"
+#include "amount.h"
 
 using namespace std;
 

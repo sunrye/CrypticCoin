@@ -5,6 +5,7 @@
 #include "bitcoinunits.h"
 #include "walletmodel.h"
 #include "addresstablemodel.h"
+#include "amount.h"
 #include "optionsmodel.h"
 #include "coincontrol.h"
 

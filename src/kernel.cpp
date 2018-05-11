@@ -4,6 +4,7 @@
 
 #include <boost/assign/list_of.hpp>
 
+#include "amount.h"
 #include "kernel.h"
 #include "txdb.h"
 

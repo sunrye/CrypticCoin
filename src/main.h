@@ -36,17 +36,9 @@ static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
-static const int64 MIN_TX_FEE = 10 * CENT;
-static const int64 MIN_RELAY_TX_FEE = 10 * CENT;
-static const int64 MAX_MONEY = 7598607361 * COIN;
-static const int64 PREMINE_AMOUNT = 3039442960 * COIN;
-static const int64 FREECO_AMOUNT = 379930370 * COIN;
-static const int64 AMB_FREECO_AMOUNT = 759860740 * COIN;
 static const int64 HALF_HELMING_BLOCKS = 1048320; // Number of block which will be mined in one year, two, three and etc.
 static const int64 LAST_BLOCK_WITH_REWARDS = 6361141;
 static const int DISABLE_POS_BLOCK = 1;
-
-static const int64 MIN_TXOUT_AMOUNT = MIN_TX_FEE;
 
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
