@@ -40,18 +40,19 @@ public:
     Note note(const PaymentAddress& addr) const;
 
     IMPLEMENT_SERIALIZE
-        (
-         READWRITE(leadingByte);
+    (
+        unsigned char leadingByte = 0x00;
+        READWRITE(leadingByte);
 
-         if (leadingByte != 0x00) {
-             throw std::ios_base::failure("lead byte of NotePlaintext is not recognized");
-         }
+        if (leadingByte != 0x00) {
+            throw std::ios_base::failure("lead byte of NotePlaintext is not recognized");
+        }
 
-         READWRITE(value);
-         READWRITE(rho);
-         READWRITE(r);
-         READWRITE(memo);
-        )
+        READWRITE(value);
+        READWRITE(rho);
+        READWRITE(r);
+        READWRITE(memo);
+    )
 
     static NotePlaintext decrypt(const ZCNoteDecryption& decryptor,
                                  const ZCNoteDecryption::Ciphertext& ciphertext,

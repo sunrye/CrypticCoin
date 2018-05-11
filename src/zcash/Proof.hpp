@@ -12,7 +12,7 @@ const unsigned char G2_PREFIX_MASK = 0x0a;
 // Element in the base field
 class Fq {
 private:
-    base_blob<256> data;
+    base_uint<256> data;
 public:
     Fq() : data() { }
 
@@ -43,7 +43,7 @@ public:
 // Element in the extension field
 class Fq2 {
 private:
-    base_blob<512> data;
+    base_uint<512> data;
 public:
     Fq2() : data() { }
 
@@ -87,21 +87,21 @@ public:
     libsnark_G1 to_libsnark_g1() const;
 
     IMPLEMENT_SERIALIZE
-        (
-         unsigned char leadingByte = G1_PREFIX_MASK;
+    (
+        unsigned char leadingByte = G1_PREFIX_MASK;
 
-         if (y_lsb)
-             leadingByte |= 1;
+        if (y_lsb)
+            leadingByte |= 1;
 
-         READWRITE(leadingByte);
+        READWRITE(leadingByte);
 
-         if ((leadingByte & (~1)) != G1_PREFIX_MASK)
-             throw std::ios_base::failure("lead byte of G1 point not recognized");
+        if ((leadingByte & (~1)) != G1_PREFIX_MASK)
+            throw std::ios_base::failure("lead byte of G1 point not recognized");
 
-         y_lsb = leadingByte & 1;
+        const_cast<CompressedG1*>(this)->y_lsb = leadingByte & 1;
 
-         READWRITE(x);
-        )
+        READWRITE(x);
+    )
 
     friend bool operator==(const CompressedG1& a, const CompressedG1& b)
     {
@@ -133,21 +133,21 @@ public:
     libsnark_G2 to_libsnark_g2() const;
 
     IMPLEMENT_SERIALIZE
-        (
-         unsigned char leadingByte = G2_PREFIX_MASK;
+    (
+        unsigned char leadingByte = G2_PREFIX_MASK;
 
-         if (y_gt)
-             leadingByte |= 1;
+        if (y_gt)
+            leadingByte |= 1;
 
-         READWRITE(leadingByte);
+        READWRITE(leadingByte);
 
-         if ((leadingByte & (~1)) != G2_PREFIX_MASK)
-             throw std::ios_base::failure("lead byte of G2 point not recognized");
+        if ((leadingByte & (~1)) != G2_PREFIX_MASK)
+            throw std::ios_base::failure("lead byte of G2 point not recognized");
 
-         y_gt = leadingByte & 1;
+        const_cast<CompressedG2*>(this)->y_gt = leadingByte & 1;
 
-         READWRITE(x);
-        )
+        READWRITE(x);
+    )
 
     friend bool operator==(const CompressedG2& a, const CompressedG2& b)
     {

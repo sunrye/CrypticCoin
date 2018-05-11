@@ -59,14 +59,20 @@ public:
     ViewingKey() : a_pk(), sk_enc() { }
     ViewingKey(uint256 a_pk, ReceivingKey sk_enc) : a_pk(a_pk), sk_enc(sk_enc) { }
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
-    {
+    IMPLEMENT_SERIALIZE
+    (
         READWRITE(a_pk);
         READWRITE(sk_enc);
-    }
+    )
+
+    // ADD_SERIALIZE_METHODS;
+
+    // template <typename Stream, typename Operation>
+    // inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    // {
+    //     READWRITE(a_pk);
+    //     READWRITE(sk_enc);
+    // }
 
     PaymentAddress address() const;
 

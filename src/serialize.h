@@ -18,6 +18,7 @@
 #include <boost/tuple/tuple.hpp>
 #include <boost/tuple/tuple_comparison.hpp>
 #include <boost/tuple/tuple_io.hpp>
+#include <boost/array.hpp>
 
 #include "allocators.h"
 #include "version.h"
@@ -357,7 +358,10 @@ template<typename K, typename Pred, typename A> unsigned int GetSerializeSize(co
 template<typename Stream, typename K, typename Pred, typename A> void Serialize(Stream& os, const std::set<K, Pred, A>& m, int nType, int nVersion);
 template<typename Stream, typename K, typename Pred, typename A> void Unserialize(Stream& is, std::set<K, Pred, A>& m, int nType, int nVersion);
 
-
+// boost::array
+template<typename T, std::size_t N> inline unsigned int GetSerializeSize(const boost::array<T, N>& v, int nType, int nVersion);
+template<typename Stream, typename T, std::size_t N> void Serialize(Stream& os, const boost::array<T, N>& item);
+template<typename Stream, typename T, std::size_t N> void Unserialize(Stream& is, boost::array<T, N>& item);
 
 
 
@@ -728,7 +732,30 @@ struct ser_streamplaceholder
 
 
 
+//
+// array
+//
+template<typename T, std::size_t N>
+inline unsigned int GetSerializeSize(const boost::array<T, N>& v, int nType, int nVersion)
+{
+    return v.size();
+}
 
+template<typename Stream, typename T, std::size_t N>
+void Serialize(Stream& os, const boost::array<T, N>& item)
+{
+    for (size_t i = 0; i < N; i++) {
+        Serialize(os, item[i]);
+    }
+}
+
+template<typename Stream, typename T, std::size_t N>
+void Unserialize(Stream& is, boost::array<T, N>& item)
+{
+    for (size_t i = 0; i < N; i++) {
+        Unserialize(is, item[i]);
+    }
+}
 
 
 
