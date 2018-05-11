@@ -9,7 +9,9 @@
 #include <stdlib.h>
 #include <string>
 
-typedef int64_t CAmount;
+typedef long long  int64;
+
+typedef int64 CAmount;
 
 static const CAmount COIN = 100000000;
 static const CAmount CENT = 1000000;
