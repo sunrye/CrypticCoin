@@ -26,7 +26,6 @@ LIBBITCOIN_SERVER=libbitcoin_server.a
 LIBBITCOIN_WALLET=libbitcoin_wallet.a
 LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBSNARK=snark/libsnark.a
-LIBZCASH=libzcash.a
 
 LIBBITCOIN_UTIL=libbitcoin_util.a
 if HAVE_SSE2
