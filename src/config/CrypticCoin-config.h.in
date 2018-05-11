@@ -193,6 +193,9 @@
 /* Define this symbol if you have MSG_NOSIGNAL */
 #undef HAVE_MSG_NOSIGNAL
 
+/* Define if OpenMP is enabled */
+#undef HAVE_OPENMP
+
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
 

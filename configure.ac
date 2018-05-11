@@ -694,16 +694,6 @@ if test "x$use_tests$build_bitcoind$use_qt" = "xnonono"; then
   AC_MSG_ERROR([No targets! Please specify at least one of: --enable-daemon or --enable-gui])
 fi
 
-dnl Check for OpenMP support
-AX_OPENMP(
-  [AC_DEFINE(HAVE_OPENMP, 1, [Define if OpenMP is enabled])
-   AM_CONDITIONAL([HAVE_OPENMP], [true])
-   CPPFLAGS="$CPPFLAGS -DMULTICORE"
-   CXXFLAGS="$CXXFLAGS $OPENMP_CXXFLAGS"],
-  [AC_MSG_WARN([OpenMP not supported, disabling multithreading])
-   AC_DEFINE(HAVE_OPENMP, 0, [Define if OpenMP is enabled])
-   AM_CONDITIONAL([HAVE_OPENMP], [false])])
-
 # Gitian uses a config.site that sets depends_prefix, and then sets --prefix=/
 # build.sh just uses --prefix
 if test x$depends_prefix != x; then
@@ -739,6 +729,16 @@ AC_SUBST(CLIENT_VERSION_BUILD, _CLIENT_VERSION_BUILD)
 AC_SUBST(CLIENT_VERSION_IS_RELEASE, _CLIENT_VERSION_IS_RELEASE)
 AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 
+
+dnl Check for OpenMP support
+AX_OPENMP(
+  [AC_DEFINE(HAVE_OPENMP, 1, [Define if OpenMP is enabled])
+   AM_CONDITIONAL([HAVE_OPENMP], [true])
+   CPPFLAGS="$CPPFLAGS -DMULTICORE"
+   CXXFLAGS="$CXXFLAGS $OPENMP_CXXFLAGS"],
+  [AC_MSG_WARN([OpenMP not supported, disabling multithreading])
+   AC_DEFINE(HAVE_OPENMP, 0, [Define if OpenMP is enabled])
+   AM_CONDITIONAL([HAVE_OPENMP], [false])])
 
 AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
