@@ -13,7 +13,7 @@
 #include "zcash/NoteEncryption.hpp"
 #include "zcash/Zcash.h"
 #include "zcash/JoinSplit.hpp"
-//#include "zcash/Proof.hpp"
+#include "zcash/Proof.hpp"
 
 class CTxIndex;
 class CTxDB;
