@@ -104,6 +104,7 @@ linux-build
 win32-build
 qa/pull-tester/build-tests.sh
 
+!src/snark/Makefile
 !src/leveldb*/Makefile
 
 /doc/doxygen
