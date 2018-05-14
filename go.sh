@@ -70,6 +70,37 @@ sudo apt-get -y install libseccomp-dev
 
 sudo apt-get -y install libcap-dev
 
+#// Install GMP library
+sudo apt-get -y install libgmp3-dev
+
+#// Install Sodium library
+wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.15.tar.gz
+tar -xvzf libsodium-1.0.15.tar.gz
+rm libsodium-1.0.15.tar.gz
+
+cd libsodium-1.0.15
+./configure
+make && make check
+sudo make install
+cd ..
+
+rm -rf libsodium-1.0.15
+
+#// Install Googletest library
+wget https://github.com/google/googletest/archive/release-1.8.0.tar.gz
+tar -xvzf release-1.8.0.tar.gz
+rm release-1.8.0.tar.gz
+
+cd googletest-release-1.8.0
+make -C googlemock/make CXXFLAGS=-fPIC gmock.a && make  -C googletest/make CXXFLAGS=-fPIC gtest.a
+sudo install ./googlemock/make/gmock.a /usr/local/lib/libgmock.a
+sudo install ./googletest/make/gtest.a /usr/local/lib/libgtest.a
+sudo cp -a ./googlemock/include /usr/local
+sudo cp -a ./googletest/include /usr/local
+cd ..
+
+rm -rf googletest-release-1.8.0
+
 # Keep current version of libboost if already present
 results=$(find /usr/ -name libboost_chrono.so)
 if [ -z $results ]; then
