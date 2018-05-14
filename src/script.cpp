@@ -251,7 +251,7 @@ const char* GetOpName(opcodetype opcode)
     }
 }
 
-bool CheckSequence(const CTransaction& txTo, const CBigNum& nSequence, unsigned int nIn)
+bool CheckSequence(const CTransaction& txTo, const CBigNum& nSequence, unsigned int nIn) // TODO: SS remove it
 {
     // Relative lock times are supported by comparing the passed
     // in operand to the sequence number of the input.
@@ -298,7 +298,7 @@ bool CheckSequence(const CTransaction& txTo, const CBigNum& nSequence, unsigned 
 }
 
 
-bool CheckLockTime(const CTransaction& txTo, const CBigNum& nLockTime, unsigned int nIn)
+bool CheckLockTime(const CTransaction& txTo, const CBigNum& nLockTime, unsigned int nIn) // TODO: SS remove it
 {
     // There are two kinds of nLockTime: lock-by-blockheight
     // and lock-by-blocktime, distinguished by whether
