@@ -6,7 +6,6 @@
 #include "script.h"
 #include "uint256.h"
 #include "amount.h"
-// #include "random.h"
 // #include "util.h"
 // #include "version.h"
 #include "consensus/consensus.h"

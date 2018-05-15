@@ -4,6 +4,7 @@
 #include "main.h"
 #include "checkpoints.h"
 #include "amount.h"
+#include "random.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
