@@ -19,6 +19,7 @@
 #include <boost/tuple/tuple_comparison.hpp>
 #include <boost/tuple/tuple_io.hpp>
 #include <boost/array.hpp>
+#include <boost/optional.hpp>
 
 #include "allocators.h"
 #include "version.h"
@@ -362,6 +363,11 @@ template<typename Stream, typename K, typename Pred, typename A> void Unserializ
 template<typename T, std::size_t N> inline unsigned int GetSerializeSize(const boost::array<T, N>& v, int nType, int nVersion);
 template<typename Stream, typename T, std::size_t N> void Serialize(Stream& os, const boost::array<T, N>& item, int nType, int nVersion);
 template<typename Stream, typename T, std::size_t N> void Unserialize(Stream& is, boost::array<T, N>& item, int nType, int nVersion);
+
+// boost::optional
+template<typename T> inline unsigned int GetSerializeSize(const boost::optional<T>& item, int nType, int nVersion);
+template<typename Stream, typename T> void Serialize(Stream& os, const boost::optional<T>& item, int nType, int nVersion);
+template<typename Stream, typename T> void Unserialize(Stream& is, boost::optional<T>& item, int nType, int nVersion);
 
 
 
@@ -756,7 +762,65 @@ void Unserialize(Stream& is, boost::array<T, N>& item, int nType, int nVersion)
 }
 
 
+//
+// optional
+//
+template<typename T> 
+inline unsigned int GetSerializeSize(const boost::optional<T>& item, int nType, int nVersion)
+{
+    unsigned int nSize = 0;
+    if (item)
+    {
+        unsigned char discriminant = 0x01;
+        nSize = GetSerializeSize(discriminant, nType, nVersion) + GetSerializeSize(item, nType, nVersion);
+    }
+    else
+    {
+        unsigned char discriminant = 0x00;
+        nSize = GetSerializeSize(discriminant, nType, nVersion);
+    }
+    return nSize;
+}
 
+template<typename Stream, typename T>
+void Serialize(Stream& os, const boost::optional<T>& item, int nType, int nVersion)
+{
+    // If the value is there, put 0x01 and then serialize the value.
+    // If it's not, put 0x00.
+    if (item)
+    {
+        unsigned char discriminant = 0x01;
+        Serialize(os, discriminant, nType, nVersion);
+        Serialize(os, *item, nType, nVersion);
+    }
+    else
+    {
+        unsigned char discriminant = 0x00;
+        Serialize(os, discriminant, nType, nVersion);
+    }
+}
+
+template<typename Stream, typename T>
+void Unserialize(Stream& is, boost::optional<T>& item, int nType, int nVersion)
+{
+    unsigned char discriminant = 0x00;
+    Unserialize(is, discriminant);
+
+    if (discriminant == 0x00)
+    {
+        item = boost::none;
+    }
+    else if (discriminant == 0x01)
+    {
+        T object;
+        Unserialize(is, object, nType, nVersion);
+        item = object;
+    }
+    else
+    {
+        throw std::ios_base::failure("non-canonical optional discriminant");
+    }
+}
 
 
 

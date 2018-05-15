@@ -20,10 +20,10 @@ public:
     std::vector<bool> index;
 
     IMPLEMENT_SERIALIZE
-        (
-         READWRITE(authentication_path);
-         READWRITE(index);
-        )
+    (
+        READWRITE(authentication_path);
+        READWRITE(index);
+    )
 
     MerklePath() { }
 
@@ -96,13 +96,13 @@ public:
     }
 
     IMPLEMENT_SERIALIZE
-        (
-         READWRITE(left);
-         READWRITE(right);
-         READWRITE(parents);
+    (
+        READWRITE(left);
+        READWRITE(right);
+        READWRITE(parents);
 
-         wfcheck();
-        )
+        wfcheck();
+    )
 
     static Hash empty_root()
     {
@@ -110,8 +110,7 @@ public:
     }
 
     template <size_t D, typename H>
-    friend bool operator==(const IncrementalMerkleTree<D, H>& a,
-                           const IncrementalMerkleTree<D, H>& b);
+    friend bool operator==(const IncrementalMerkleTree<D, H> &a, const IncrementalMerkleTree<D, H> &b);
 
 private:
     static EmptyMerkleRoots<Depth, Hash> emptyroots;
@@ -166,13 +165,13 @@ public:
     void append(Hash obj);
 
     IMPLEMENT_SERIALIZE
-        (
-         READWRITE(tree);
-         READWRITE(filled);
-         READWRITE(cursor);
+    (
+        READWRITE(tree);
+        READWRITE(filled);
+        READWRITE(cursor);
 
-         cursor_depth = tree.next_depth(filled.size());
-        )
+        //cursor_depth = tree.next_depth(filled.size());
+    )
 
     template <size_t D, typename H>
     friend bool operator==(const IncrementalWitness<D, H>& a,
