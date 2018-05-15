@@ -5,10 +5,11 @@
 #include "serialize.h"
 #include "script.h"
 #include "uint256.h"
-// #include "amount.h"
+#include "amount.h"
 // #include "random.h"
 // #include "util.h"
 // #include "version.h"
+#include "consensus/consensus.h"
 
 #include <boost/array.hpp>
 #include <boost/variant.hpp>
@@ -23,18 +24,6 @@ class CTxDB;
 class CTransaction;
 class CDiskTxPos;
 class CBlockIndex;
-
-// Consensus.h
-///** The minimum allowed transaction version (network rule) */
-//static const int32_t SPROUT_MIN_TX_VERSION = 1;
-///** The minimum allowed Overwinter transaction version (network rule) */
-//static const int32_t OVERWINTER_MIN_TX_VERSION = 3;
-///** The maximum allowed Overwinter transaction version (network rule) */
-//static const int32_t OVERWINTER_MAX_TX_VERSION = 3;
-///** The minimum allowed Sapling transaction version (network rule) */
-//static const int32_t SAPLING_MIN_TX_VERSION = 4;
-///** The maximum allowed Sapling transaction version (network rule) */
-//static const int32_t SAPLING_MAX_TX_VERSION = 4;
 
 // Overwinter transaction version
 static const int32_t OVERWINTER_TX_VERSION = 3;
@@ -640,7 +629,7 @@ class CTransaction
 //     */
 //    CTransaction(const CMutableTransaction &tx, bool evilDeveloperFlag);
 public:
-    static const int CURRENT_VERSION=1; // TODO: SS ?
+    static const int CURRENT_VERSION = 1; // TODO: SS ?
 
     typedef boost::array<unsigned char, 64> joinsplit_sig_t;
     typedef boost::array<unsigned char, 64> binding_sig_t;
@@ -675,19 +664,19 @@ public:
     // actually immutable; deserialization and assignment are implemented,
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
-    const bool fOverwintered;
+    bool fOverwintered;
     int nVersion;
-    const uint32_t nVersionGroupId;
-    unsigned int nTime; // TODO: SS ?
+    uint32_t nVersionGroupId;
+    uint32_t nTime;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
-    unsigned int nLockTime; // TODO: SS ?
-    const uint32_t nExpiryHeight;
-    const CAmount valueBalance;
-    const std::vector<SpendDescription> vShieldedSpend;
-    const std::vector<OutputDescription> vShieldedOutput;
-    const std::vector<JSDescription> vjoinsplit;
-    const uint256 joinSplitPubKey;
+    uint32_t nLockTime; 
+    uint32_t nExpiryHeight;
+    CAmount valueBalance;
+    std::vector<SpendDescription> vShieldedSpend;
+    std::vector<OutputDescription> vShieldedOutput;
+    std::vector<JSDescription> vjoinsplit;
+    uint256 joinSplitPubKey;
     CTransaction::joinsplit_sig_t joinSplitSig = {{0}};
     CTransaction::binding_sig_t bindingSig = {{0}};
 

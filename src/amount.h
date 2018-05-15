@@ -9,9 +9,7 @@
 #include <stdlib.h>
 #include <string>
 
-typedef long long  int64;
-
-typedef int64 CAmount;
+typedef int64_t CAmount;
 
 static const CAmount COIN = 100000000;
 static const CAmount CENT = 1000000;
@@ -20,12 +18,12 @@ static const CAmount MAX_MONEY = 7598607361 * COIN;
 inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 
 
-static const int64 MIN_TX_FEE = 10 * CENT;
-static const int64 MIN_RELAY_TX_FEE = 10 * CENT;
-static const int64 PREMINE_AMOUNT = 3039442960 * COIN;
-static const int64 FREECO_AMOUNT = 379930370 * COIN;
-static const int64 AMB_FREECO_AMOUNT = 759860740 * COIN;
+static const int64_t MIN_TX_FEE = 10 * CENT;
+static const int64_t MIN_RELAY_TX_FEE = 10 * CENT;
+static const int64_t PREMINE_AMOUNT = 3039442960 * COIN;
+static const int64_t FREECO_AMOUNT = 379930370 * COIN;
+static const int64_t AMB_FREECO_AMOUNT = 759860740 * COIN;
 
-static const int64 MIN_TXOUT_AMOUNT = MIN_TX_FEE;
+static const int64_t MIN_TXOUT_AMOUNT = MIN_TX_FEE;
 
 #endif //CRYPTICCOIN_AMOUNT_H
