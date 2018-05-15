@@ -17,6 +17,7 @@
 #include <list>
 #include "ui_interface.h"
 #include "primitives/transaction.h"
+#include "consensus/consensus.h"
 
 class CWallet;
 class CBlock;
@@ -31,9 +32,10 @@ class CRequestTracker;
 class CNode;
 
 static const int SAME_ALGO_MAX_COUNT = 6;
-static const unsigned int MAX_BLOCK_SIZE = 1000000;
+//moved to consensus.h
+//static const unsigned int MAX_BLOCK_SIZE = 1000000;
+//static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
-static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const int64 HALF_HELMING_BLOCKS = 1048320; // Number of block which will be mined in one year, two, three and etc.
