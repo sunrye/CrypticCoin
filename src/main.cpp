@@ -276,8 +276,8 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight)
 
 bool IsStandardTx(const CTransaction& tx)
 {
-    if (tx.nVersion > CTransaction::CURRENT_VERSION)
-        return false;
+//    if (tx.nVersion > CTransaction::CURRENT_VERSION)
+//        return false;
 
     // Treat non-final transactions as non-standard to prevent a specific type
     // of double-spend attack, as well as DoS attacks. (if the transaction

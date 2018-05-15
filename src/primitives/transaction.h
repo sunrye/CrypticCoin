@@ -434,11 +434,6 @@ public:
         return !(a == b);
     }
 
-    std::string ToStringShort() const
-    {
-        return strprintf(" %s %d", prevout.hash.ToString().c_str(), prevout.n);
-    }
-
     std::string ToString() const
     {
         std::string str;
@@ -549,11 +544,6 @@ public:
         return !(a == b);
     }
 
-    std::string ToStringShort() const
-    {
-        return strprintf(" out %s %s", FormatMoney(nValue).c_str(), scriptPubKey.ToString(true).c_str());
-    }
-
     std::string ToString() const
     {
         if (IsEmpty()) return "CTxOut(empty)";
@@ -591,18 +581,7 @@ typedef std::map<uint256, std::pair<CTxIndex, CTransaction> > MapPrevTx;
  */
 class CTransaction
 {
-//private:
-//    /** Memory only. */
-//    const uint256 hash;
-//    void UpdateHash() const;
-//protected:
-//    /** Developer testing only.  Set evilDeveloperFlag to true.
-//     * Convert a CMutableTransaction into a CTransaction without invoking UpdateHash()
-//     */
-//    CTransaction(const CMutableTransaction &tx, bool evilDeveloperFlag);
 public:
-    static const int CURRENT_VERSION = 1; // TODO: SS ?
-
     typedef boost::array<unsigned char, 64> joinsplit_sig_t;
     typedef boost::array<unsigned char, 64> binding_sig_t;
 
@@ -637,7 +616,7 @@ public:
     // and bypass the constness. This is safe, as they update the entire
     // structure, including the hash.
     bool fOverwintered;
-    int nVersion;
+    uint16_t nVersion;
     uint32_t nVersionGroupId;
     uint32_t nTime;
     std::vector<CTxIn> vin;
@@ -663,21 +642,66 @@ public:
 
     IMPLEMENT_SERIALIZE
     (
-        READWRITE(this->nVersion);
-        nVersion = this->nVersion;
-        READWRITE(nTime);
+        READWRITE(fOverwintered);
+        READWRITE(nVersion);
+        if (fOverwintered) {
+            READWRITE(nVersionGroupId);
+        }
+
+        bool isOverwinterV3 =
+                fOverwintered &&
+                nVersionGroupId == OVERWINTER_VERSION_GROUP_ID &&
+                nVersion == OVERWINTER_TX_VERSION;
+        bool isSaplingV4 =
+                fOverwintered &&
+                nVersionGroupId == SAPLING_VERSION_GROUP_ID &&
+                nVersion == SAPLING_TX_VERSION;
+        if (fOverwintered && !(isOverwinterV3 || isSaplingV4)) {
+            throw std::ios_base::failure("Unknown transaction format");
+        }
+
         READWRITE(vin);
         READWRITE(vout);
+        READWRITE(nTime);
         READWRITE(nLockTime);
+        if (isOverwinterV3 || isSaplingV4) {
+            READWRITE(nExpiryHeight);
+        }
+        if (isSaplingV4) {
+            READWRITE(valueBalance);
+            READWRITE(vShieldedSpend);
+            READWRITE(vShieldedOutput);
+        }
+        if (nVersion >= 2) {
+           // auto os = WithVersion(&s, static_cast<int>(header)); // TODO: SS !
+           // ::SerReadWrite(os, vjoinsplit, ser_action);
+           // if (vjoinsplit.size() > 0) {
+                READWRITE(joinSplitPubKey);
+                READWRITE(joinSplitSig);
+           // }
+        }
+        if (isSaplingV4 && !(vShieldedSpend.empty() && vShieldedOutput.empty())) {
+            READWRITE(bindingSig);
+        }
     )
 
     void SetNull()
     {
-        nVersion = CTransaction::CURRENT_VERSION;
+        nVersion = CTransaction::SPROUT_MIN_CURRENT_VERSION;
+        fOverwintered = false;
+        nVersionGroupId = 0;
+        nExpiryHeight = 0;
         nTime = GetAdjustedTime();
         vin.clear();
         vout.clear();
         nLockTime = 0;
+        valueBalance = 0;
+        vShieldedSpend.clear();
+        vShieldedOutput.clear();
+        vjoinsplit.clear();
+        joinSplitPubKey = uint256();
+        joinSplitSig = boost::array<unsigned char, 64>();
+        bindingSig = boost::array<unsigned char, 64>();
         nDoS = 0;  // Denial-of-service prevention
     }
 
@@ -762,7 +786,16 @@ public:
     /** Amount of bitcoins spent by this transaction.
         @return sum of all outputs (note: does not include fees)
      */
-    int64 GetValueOut() const;
+    CAmount GetValueOut() const;
+
+    // Return sum of JoinSplit vpub_new
+    CAmount GetJoinSplitValueIn() const;
+
+    // Compute priority, given priority of inputs and (optionally) tx size
+    double ComputePriority(double dPriorityInputs, unsigned int nTxSize=0) const;
+
+    // Compute modified tx size for priority calculation (optionally given tx size)
+    unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
 
     /** Amount of bitcoins coming in to this transaction
         Note that lightweight clients may not know anything besides the hash of previous transactions,
@@ -794,24 +827,45 @@ public:
         return !(a == b);
     }
 
-    std::string ToStringShort() const
-    {
-        std::string str;
-        str += strprintf("%s %s", GetHash().ToString().c_str(), IsCoinBase()? "base" : (IsCoinStake()? "stake" : "user"));
-        return str;
-    }
-
     std::string ToString() const
     {
         std::string str;
-        str += IsCoinBase()? "Coinbase" : (IsCoinStake()? "Coinstake" : "CTransaction");
-        str += strprintf("(hash=%s, nTime=%d, ver=%d, vin.size=%" PRIszu", vout.size=%" PRIszu", nLockTime=%d)\n",
-                GetHash().ToString().substr(0,10).c_str(),
-                nTime,
-                nVersion,
-                vin.size(),
-                vout.size(),
-                nLockTime);
+        if (!fOverwintered)
+        {
+            str += strprintf("CTransaction(hash=%s, ver=%d, vin.size=%u, vout.size=%u, nLockTime=%u)\n",
+                             GetHash().ToString().substr(0,10),
+                             nVersion,
+                             vin.size(),
+                             vout.size(),
+                             nLockTime);
+        }
+            else if (nVersion >= SAPLING_MIN_TX_VERSION)
+        {
+            str += strprintf("CTransaction(hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u, valueBalance=%u, vShieldedSpend.size=%u, vShieldedOutput.size=%u)\n",
+                             GetHash().ToString().substr(0,10),
+                             nVersion,
+                             fOverwintered,
+                             nVersionGroupId,
+                             vin.size(),
+                             vout.size(),
+                             nLockTime,
+                             nExpiryHeight,
+                             valueBalance,
+                             vShieldedSpend.size(),
+                             vShieldedOutput.size());
+        }
+            else if (nVersion >= 3)
+        {
+            str += strprintf("CTransaction(hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u)\n",
+                             GetHash().ToString().substr(0,10),
+                             nVersion,
+                             fOverwintered,
+                             nVersionGroupId,
+                             vin.size(),
+                             vout.size(),
+                             nLockTime,
+                             nExpiryHeight);
+        }
         for (unsigned int i = 0; i < vin.size(); i++)
             str += "    " + vin[i].ToString() + "\n";
         for (unsigned int i = 0; i < vout.size(); i++)

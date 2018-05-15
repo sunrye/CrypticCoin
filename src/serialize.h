@@ -389,6 +389,24 @@ inline void Unserialize(Stream& is, T& a, long nType, int nVersion)
     a.Unserialize(is, (int)nType, nVersion);
 }
 
+/**
+ * array
+ */
+template<typename Stream, typename T, std::size_t N>
+void Serialize(Stream& os, const boost::array<T, N>& item)
+{
+    for (size_t i = 0; i < N; i++) {
+        Serialize(os, item[i]);
+    }
+}
+
+template<typename Stream, typename T, std::size_t N>
+void Unserialize(Stream& is, boost::array<T, N>& item)
+{
+    for (size_t i = 0; i < N; i++) {
+        Unserialize(is, item[i]);
+    }
+}
 
 
 

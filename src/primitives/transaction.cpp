@@ -10,6 +10,120 @@
 
 using namespace std;
 
+JSDescription::JSDescription(ZCJoinSplit& params,
+                             const uint256& pubKeyHash,
+                             const uint256& anchor,
+                             const boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
+                             const boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
+                             CAmount vpub_old,
+                             CAmount vpub_new,
+                             bool computeProof,
+                             uint256 *esk // payment disclosure
+) : vpub_old(vpub_old), vpub_new(vpub_new), anchor(anchor)
+{
+    boost::array<libzcash::Note, ZC_NUM_JS_OUTPUTS> notes;
+
+    proof = params.prove(
+            inputs,
+            outputs,
+            notes,
+            ciphertexts,
+            ephemeralKey,
+            pubKeyHash,
+            randomSeed,
+            macs,
+            nullifiers,
+            commitments,
+            vpub_old,
+            vpub_new,
+            anchor,
+            computeProof,
+            esk // payment disclosure
+    );
+}
+
+JSDescription JSDescription::Randomized(
+        ZCJoinSplit& params,
+        const uint256& pubKeyHash,
+        const uint256& anchor,
+        boost::array<libzcash::JSInput, ZC_NUM_JS_INPUTS>& inputs,
+        boost::array<libzcash::JSOutput, ZC_NUM_JS_OUTPUTS>& outputs,
+        boost::array<size_t, ZC_NUM_JS_INPUTS>& inputMap,
+        boost::array<size_t, ZC_NUM_JS_OUTPUTS>& outputMap,
+        CAmount vpub_old,
+        CAmount vpub_new,
+        bool computeProof,
+        uint256 *esk, // payment disclosure
+        std::function<int(int)> gen
+)
+{
+    // Randomize the order of the inputs and outputs
+    inputMap = {0, 1};
+    outputMap = {0, 1};
+
+    assert(gen);
+
+    MappedShuffle(inputs.begin(), inputMap.begin(), ZC_NUM_JS_INPUTS, gen);
+    MappedShuffle(outputs.begin(), outputMap.begin(), ZC_NUM_JS_OUTPUTS, gen);
+
+    return JSDescription(
+            params, pubKeyHash, anchor, inputs, outputs,
+            vpub_old, vpub_new, computeProof,
+            esk // payment disclosure
+    );
+}
+
+class SproutProofVerifier : public boost::static_visitor<bool>
+{
+    ZCJoinSplit& params;
+    libzcash::ProofVerifier& verifier;
+    const uint256& pubKeyHash;
+    const JSDescription& jsdesc;
+
+public:
+    SproutProofVerifier(
+            ZCJoinSplit& params,
+            libzcash::ProofVerifier& verifier,
+            const uint256& pubKeyHash,
+            const JSDescription& jsdesc
+    ) : params(params), jsdesc(jsdesc), verifier(verifier), pubKeyHash(pubKeyHash) {}
+
+    bool operator()(const libzcash::ZCProof& proof) const
+    {
+        return params.verify(
+                proof,
+                verifier,
+                pubKeyHash,
+                jsdesc.randomSeed,
+                jsdesc.macs,
+                jsdesc.nullifiers,
+                jsdesc.commitments,
+                jsdesc.vpub_old,
+                jsdesc.vpub_new,
+                jsdesc.anchor
+        );
+    }
+
+    bool operator()(const libzcash::GrothProof& proof) const
+    {
+        return false;
+    }
+};
+
+bool JSDescription::Verify(
+        ZCJoinSplit& params,
+        libzcash::ProofVerifier& verifier,
+        const uint256& pubKeyHash
+) const {
+    auto pv = SproutProofVerifier(params, verifier, pubKeyHash, *this);
+    return boost::apply_visitor(pv, proof);
+}
+
+uint256 JSDescription::h_sig(ZCJoinSplit& params, const uint256& pubKeyHash) const
+{
+    return params.h_sig(randomSeed, nullifiers, pubKeyHash);
+}
+
 
 bool CTransaction::CheckTransaction() const
 {
@@ -262,16 +376,66 @@ unsigned int CTransaction::GetP2SHSigOpCount(const MapPrevTx& inputs) const
     return nSigOps;
 }
 
-int64 CTransaction::GetValueOut() const
+CAmount CTransaction::GetValueOut() const
 {
-    int64 nValueOut = 0;
-    BOOST_FOREACH(const CTxOut& txout, vout)
+    CAmount nValueOut = 0;
+    for (std::vector<CTxOut>::const_iterator it(vout.begin()); it != vout.end(); ++it)
     {
-        nValueOut += txout.nValue;
-        if (!MoneyRange(txout.nValue) || !MoneyRange(nValueOut))
-            throw std::runtime_error("CTransaction::GetValueOut() : value out of range");
+        nValueOut += it->nValue;
+        if (!MoneyRange(it->nValue) || !MoneyRange(nValueOut))
+            throw std::runtime_error("CTransaction::GetValueOut(): value out of range");
+    }
+
+    for (std::vector<JSDescription>::const_iterator it(vjoinsplit.begin()); it != vjoinsplit.end(); ++it)
+    {
+        // NB: vpub_old "takes" money from the value pool just as outputs do
+        nValueOut += it->vpub_old;
+
+        if (!MoneyRange(it->vpub_old) || !MoneyRange(nValueOut))
+            throw std::runtime_error("CTransaction::GetValueOut(): value out of range");
     }
     return nValueOut;
+}
+
+CAmount CTransaction::GetJoinSplitValueIn() const
+{
+    CAmount nValue = 0;
+    for (std::vector<JSDescription>::const_iterator it(vjoinsplit.begin()); it != vjoinsplit.end(); ++it)
+    {
+        // NB: vpub_new "gives" money to the value pool just as inputs do
+        nValue += it->vpub_new;
+
+        if (!MoneyRange(it->vpub_new) || !MoneyRange(nValue))
+            throw std::runtime_error("CTransaction::GetJoinSplitValueIn(): value out of range");
+    }
+
+    return nValue;
+}
+
+double CTransaction::ComputePriority(double dPriorityInputs, unsigned int nTxSize) const
+{
+    nTxSize = CalculateModifiedSize(nTxSize);
+    if (nTxSize == 0) return 0.0;
+
+    return dPriorityInputs / nTxSize;
+}
+
+unsigned int CTransaction::CalculateModifiedSize(unsigned int nTxSize) const
+{
+    // In order to avoid disincentivizing cleaning up the UTXO set we don't count
+    // the constant overhead for each txin and up to 110 bytes of scriptSig (which
+    // is enough to cover a compressed pubkey p2sh redemption) for priority.
+    // Providing any more cleanup incentive than making additional inputs free would
+    // risk encouraging people to create junk outputs to redeem later.
+    if (nTxSize == 0)
+        nTxSize = ::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION);
+    for (std::vector<CTxIn>::const_iterator it(vin.begin()); it != vin.end(); ++it)
+    {
+        unsigned int offset = 41U + std::min(110U, (unsigned int)it->scriptSig.size());
+        if (nTxSize > offset)
+            nTxSize -= offset;
+    }
+    return nTxSize;
 }
 
 bool CTransaction::ConnectInputs(CTxDB& txdb, MapPrevTx inputs,
@@ -531,17 +695,17 @@ bool CTransaction::ReadFromDisk(COutPoint prevout)
 
 bool CTransaction::IsStandard() const
 {
-    if (nVersion > CTransaction::CURRENT_VERSION) {
-        printf("CTransaction::IsStandard() : nVersion > CTransaction::CURRENT_VERSION \n");
-        return false;
-    }
+//    if (nVersion > CTransaction::CURRENT_VERSION) {
+//        printf("CTransaction::IsStandard() : nVersion > CTransaction::CURRENT_VERSION \n");
+//        return false;
+//    }
 
     BOOST_FOREACH(const CTxIn& txin, vin)
     {
         // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
         // pay-to-script-hash, which is 3 ~80-byte signatures, 3
         // ~65-byte public keys, plus a few script ops.
-        if (txin.scriptSig.size() > 500) {
+        if (txin.scriptSig.size() > 500) {  // TODO: SS change this size
             printf("CTransaction::IsStandard() : txin Script Size > 500 \n");
             return false;
         }
