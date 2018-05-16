@@ -1,6 +1,5 @@
 AM_CPPFLAGS =  $(INCLUDES) 
-AM_LDFLAGS = $(PTHREAD_CFLAGS)
-
+AM_LDFLAGS = $(PTHREAD_CFLAGS) $(LIBTOOL_LDFLAGS) $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
 
 if EMBEDDED_LEVELDB
 LEVELDB_CPPFLAGS += -I$(srcdir)/leveldb/include
@@ -18,7 +17,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
 endif
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
-BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) -std=c++11
+BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)#-std=c++11
 BITCOIN_INCLUDES += -I$(srcdir)/snark
 BITCOIN_INCLUDES += -I$(srcdir)/snark/libsnark
 
@@ -28,15 +27,6 @@ LIBBITCOIN_COMMON=libbitcoin_common.a
 LIBBITCOIN_CRYPTO=crypto/libbitcoin_crypto.a
 LIBSNARK=snark/libsnark.a
 LIBZCASH=libzcash.a
-
-# Make is not made aware of per-object dependencies to avoid limiting building parallelization
-# But to build the less dependent modules first, we manually select their order here:
-EXTRA_LIBRARIES = \
-  crypto/libbitcoin_crypto.a \
-  libbitcoin_util.a \
-  libbitcoin_common.a \
-  libbitcoin_server.a \
-  libzcash.a
 
 LIBBITCOIN_UTIL=libbitcoin_util.a
 if HAVE_SSE2
@@ -57,12 +47,13 @@ endif
 $(LIBSNARK): $(wildcard snark/src/*)
 	$(AM_V_at) CXXFLAGS="$(LIBSNARK_CXXFLAGS)" $(MAKE) $(AM_MAKEFLAGS) -C snark/ DEPINST="$(LIBSNARK_DEPINST)" $(LIBSNARK_CONFIG_FLAGS) OPTFLAGS="-O2 -march=x86-64"
 
-
 noinst_LIBRARIES = \
+  crypto/libbitcoin_crypto.a \
   libbitcoin_server.a \
   libbitcoin_common.a \
   libbitcoin_util.a \
   libzcash.a
+
 if ENABLE_WALLET
 BITCOIN_INCLUDES += $(BDB_CPPFLAGS)
 noinst_LIBRARIES += libbitcoin_wallet.a
@@ -105,6 +96,7 @@ BITCOIN_CORE_H = \
   clientversion.h \
   coincontrol.h \
   compat.h \
+  consensus/consensus.h \
   crypter.h \
   lz4/lz4.h \
   sph_groestl.h \
@@ -219,8 +211,8 @@ libbitcoin_wallet_a_SOURCES = \
   $(LIBZCASH_H)
 
   # crypto primitives library
-crypto_libbitcoin_crypto_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_CONFIG_INCLUDES)
-crypto_libbitcoin_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
+crypto_libbitcoin_crypto_a_CPPFLAGS = $(BITCOIN_CONFIG_INCLUDES)
+#crypto_libbitcoin_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/common.h \
   crypto/sha256.cpp \
@@ -228,6 +220,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
 
 # common: shared between bitcoind, and bitcoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+#libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   key.cpp \
   netbase.cpp \
@@ -294,33 +287,7 @@ CrypticCoind_LDADD = \
   $(LIBZCASH) \
   $(LIBSNARK) \
   $(LIBLEVELDB) \
-  $(LIBMEMENV) \
-  $(LIBZCASH_LIBS)
-
-  # zcash protocol primitives #
-  libzcash_a_SOURCES = \
-    zcash/IncrementalMerkleTree.cpp \
-    zcash/NoteEncryption.cpp \
-    zcash/Address.cpp \
-    zcash/JoinSplit.cpp \
-    zcash/Proof.cpp \
-    zcash/Note.cpp \
-    zcash/prf.cpp \
-    zcash/util.cpp \
-    zcash/circuit/commitment.tcc \
-    zcash/circuit/gadget.tcc \
-    zcash/circuit/merkle.tcc \
-    zcash/circuit/note.tcc \
-    zcash/circuit/prfs.tcc \
-    zcash/circuit/utils.tcc
-
-  libzcash_a_CPPFLAGS = -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O1 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
-
-  libzcash_a_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
-
-  libzcash_a_LDFLAGS = $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
-
-  libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
+  $(LIBMEMENV)
 
 if HAVE_SSE2
 libbitcoin_sse2_a_SOURCES = scrypt-sse2.cpp
@@ -347,10 +314,38 @@ CrypticCoind_LDADD += \
   $(LIBEVENT_LIBS) \
   $(LIBSECCOMP_LIBS) \
   $(LIBCAP_LIBS) \
-  $(ZLIB_LIBS)
+  $(ZLIB_LIBS) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBZCASH_LIBS)
 
 CrypticCoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(LIBEVENT_LDFLAGS) $(LIBSECCOMP_LDFLAGS) $(LIBCAP_LDFLAGS) $(ZLIB_LDFLAGS)
 CrypticCoind_CPPFLAGS = $(BITCOIN_INCLUDES) $(LIBEVENT_CFLAGS) $(LIBSECCOMP_CFLAGS) $(LIBCAP_CFLAGS) $(ZLIB_CFLAGS)
+CrypticCoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
+
+# zcash protocol primitives #
+libzcash_a_SOURCES = \
+  zcash/IncrementalMerkleTree.cpp \
+  zcash/NoteEncryption.cpp \
+  zcash/Address.cpp \
+  zcash/JoinSplit.cpp \
+  zcash/Proof.cpp \
+  zcash/Note.cpp \
+  zcash/prf.cpp \
+  zcash/util.cpp \
+  zcash/circuit/commitment.tcc \
+  zcash/circuit/gadget.tcc \
+  zcash/circuit/merkle.tcc \
+  zcash/circuit/note.tcc \
+  zcash/circuit/prfs.tcc \
+  zcash/circuit/utils.tcc
+
+libzcash_a_CPPFLAGS = -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O1 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
+
+libzcash_a_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
+
+libzcash_a_LDFLAGS = $(SAN_LDFLAGS) $(HARDENED_LDFLAGS)
+
+libzcash_a_CPPFLAGS += -DMONTGOMERY_OUTPUT
 
 CLEANFILES = leveldb/libleveldb.a leveldb/libmemenv.a *.gcda *.gcno
 
