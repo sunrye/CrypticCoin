@@ -32,13 +32,13 @@ sudo dd if=/dev/urandom of=$random_seed count=1 bs=$bytes
 
 cd ~
 if [ -e /swapfile1 ]; then
-echo "Swapfile already present"
+    echo "Swapfile already present"
 else
-sudo dd if=/dev/zero of=/swapfile1 bs=1024 count=524288
-sudo mkswap /swapfile1
-sudo chown root:root /swapfile1
-sudo chmod 0600 /swapfile1
-sudo swapon /swapfile1
+    sudo dd if=/dev/zero of=/swapfile1 bs=1024 count=524288
+    sudo mkswap /swapfile1
+    sudo chown root:root /swapfile1
+    sudo chmod 0600 /swapfile1
+    sudo swapon /swapfile1
 fi
 
 # Install dependency
@@ -54,10 +54,10 @@ sudo apt-get -y install libcanberra-gtk-module
 # Dont need to check if bd is already installed, will override or pass by
 #results=$(find /usr/ -name libdb_cxx.so)
 #if [ -z $results ]; then
-sudo apt-get -y install libdb4.8-dev libdb4.8++-dev
+    sudo apt-get -y install libdb4.8-dev libdb4.8++-dev
 #else
-#grep DB_VERSION_STRING $(find /usr/ -name db.h)
-#echo "BerkeleyDb will not be installed its already there...."
+    #grep DB_VERSION_STRING $(find /usr/ -name db.h)
+    #echo "BerkeleyDb will not be installed its already there...."
 #fi
 
 sudo apt-get -y install git build-essential libtool autotools-dev autoconf automake pkg-config libssl-dev libevent-dev bsdmainutils git libprotobuf-dev protobuf-compiler libqrencode-dev
@@ -74,43 +74,47 @@ sudo apt-get -y install libcap-dev
 sudo apt-get -y install libgmp3-dev
 
 #// Install Sodium library
-wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.15.tar.gz
-tar -xvzf libsodium-1.0.15.tar.gz
-rm libsodium-1.0.15.tar.gz
+if [ ! -e /usr/local/lib/libsodium.a ]; then
+    wget https://download.libsodium.org/libsodium/releases/libsodium-1.0.15.tar.gz
+    tar -xvzf libsodium-1.0.15.tar.gz
+    rm libsodium-1.0.15.tar.gz
 
-cd libsodium-1.0.15
-./configure
-make && make check
-sudo make install
-cd ..
+    cd libsodium-1.0.15
+    ./configure
+    make && make check
+    sudo make install
+    cd ..
 
-rm -rf libsodium-1.0.15
+    rm -rf libsodium-1.0.15
+fi
 
 #// Install Googletest library
-wget https://github.com/google/googletest/archive/release-1.8.0.tar.gz
-tar -xvzf release-1.8.0.tar.gz
-rm release-1.8.0.tar.gz
+if [ ! -e /usr/local/lib/libgtest.a -a ! -e /usr/local/lib/libgmock.a ]; then
+    wget https://github.com/google/googletest/archive/release-1.8.0.tar.gz
+    tar -xvzf release-1.8.0.tar.gz
+    rm release-1.8.0.tar.gz
 
-cd googletest-release-1.8.0
-make -C googlemock/make CXXFLAGS=-fPIC gmock.a && make  -C googletest/make CXXFLAGS=-fPIC gtest.a
-sudo install ./googlemock/make/gmock.a /usr/local/lib/libgmock.a
-sudo install ./googletest/make/gtest.a /usr/local/lib/libgtest.a
-sudo cp -a ./googlemock/include /usr/local
-sudo cp -a ./googletest/include /usr/local
-cd ..
+    cd googletest-release-1.8.0
+    make -C googlemock/make CXXFLAGS=-fPIC gmock.a && make  -C googletest/make CXXFLAGS=-fPIC gtest.a
+    sudo install ./googlemock/make/gmock.a /usr/local/lib/libgmock.a
+    sudo install ./googletest/make/gtest.a /usr/local/lib/libgtest.a
+    sudo cp -a ./googlemock/include /usr/local
+    sudo cp -a ./googletest/include /usr/local
+    cd ..
 
-rm -rf googletest-release-1.8.0
+    rm -rf googletest-release-1.8.0
+fi
 
 # Keep current version of libboost if already present
 results=$(find /usr/ -name libboost_chrono.so)
 if [ -z $results ]; then
-sudo apt-get -y install libboost-all-dev
-else
-red=`tput setaf 1`
-green=`tput setaf 2`
-reset=`tput sgr0`
-echo "${red}Libboost will not be installed its already there....${reset}"
-grep --include=*.hpp -r '/usr/' -e "define BOOST_LIB_VERSION"
+    sudo apt-get -y install libboost-all-dev
+    else
+    red=`tput setaf 1`
+    green=`tput setaf 2`
+    reset=`tput sgr0`
+    echo "${red}Libboost will not be installed its already there....${reset}"
+    grep --include=*.hpp -r '/usr/' -e "define BOOST_LIB_VERSION"
 fi
 
 sudo apt-get -y install --no-install-recommends gnome-panel
@@ -122,29 +126,28 @@ sudo apt-get -y install unzip
 cd ~
 
 #// Compile Berkeley if 4.8 is not there
-if [ -e /usr/lib/libdb_cxx-4.8.so ]
-then
-echo "BerkeleyDb already present...$(grep --include *.h -r '/usr/' -e 'DB_VERSION_STRING')" 
-else
-wget http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz 
-tar -xzvf db-4.8.30.NC.tar.gz 
-rm db-4.8.30.NC.tar.gz
-cd db-4.8.30.NC/build_unix 
-../dist/configure --enable-cxx 
-make 
-sudo make install 
-sudo ln -s /usr/local/BerkeleyDB.4.8/lib/libdb-4.8.so /usr/lib/libdb-4.8.so
-sudo ln -s /usr/local/BerkeleyDB.4.8/lib/libdb_cxx-4.8.so /usr/lib/libdb_cxx-4.8.so
-cd ~
-sudo rm -Rf db-4.8.30.NC
-#sudo ldconfig
+if [ -e /usr/lib/libdb_cxx-4.8.so ]; then
+    echo "BerkeleyDb already present...$(grep --include *.h -r '/usr/' -e 'DB_VERSION_STRING')"
+    else
+    wget http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz
+    tar -xzvf db-4.8.30.NC.tar.gz
+    rm db-4.8.30.NC.tar.gz
+    cd db-4.8.30.NC/build_unix
+    ../dist/configure --enable-cxx
+    make
+    sudo make install
+    sudo ln -s /usr/local/BerkeleyDB.4.8/lib/libdb-4.8.so /usr/lib/libdb-4.8.so
+    sudo ln -s /usr/local/BerkeleyDB.4.8/lib/libdb_cxx-4.8.so /usr/lib/libdb_cxx-4.8.so
+    cd ~
+    sudo rm -Rf db-4.8.30.NC
+    #sudo ldconfig
 fi
 
 #// Check if libboost is present
 
 results=$(find /usr/ -name libboost_chrono.so)
 if [ -z $results ]; then
-sudo rm download
+    sudo rm download
      wget https://sourceforge.net/projects/boost/files/boost/1.63.0/boost_1_63_0.zip/download 
      unzip -o download
      cd boost_1_63_0
@@ -183,46 +186,45 @@ split -dl 1 --additional-suffix=.txt words wrd
 
 
 if [ -e wrd01.txt ]; then
-echo 0. $(cat wrd00.txt)
-echo 1. $(cat wrd01.txt)
-echo 2. $(cat wrd02.txt)
-echo 3. $(cat wrd03.txt)
-echo -n "Choose libboost library to use(0-3)?"
-read answer
+    echo 0. $(cat wrd00.txt)
+    echo 1. $(cat wrd01.txt)
+    echo 2. $(cat wrd02.txt)
+    echo 3. $(cat wrd03.txt)
+    echo -n "Choose libboost library to use(0-3)?"
+    read answer
 else
-echo "There is only 1 libboost library present. We choose for you 0"
-answer=0
+    echo "There is only 1 libboost library present. We choose for you 0"
+    answer=0
 fi
 
 echo "You have choosen $answer"
 
-if [ -d /usr/local/BerkeleyDB.4.8/include ]
-then
-sudo ./configure CPPFLAGS="-I/usr/local/BerkeleyDB.4.8/include -O2" LDFLAGS="-L/usr/local/BerkeleyDB.4.8/lib" --with-gui=qt5 --with-boost-libdir=$(dirname "$(cat wrd0$answer.txt)")
-echo "Using Berkeley Generic..."
+if [ -d /usr/local/BerkeleyDB.4.8/include ]; then
+    sudo ./configure CPPFLAGS="-I/usr/local/BerkeleyDB.4.8/include -O2" LDFLAGS="-L/usr/local/BerkeleyDB.4.8/lib" --with-gui=qt5 --with-boost-libdir=$(dirname "$(cat wrd0$answer.txt)")
+    echo "Using Berkeley Generic..."
 else
-sudo ./configure --with-gui=qt5 --with-boost-libdir=$(dirname "$(cat wrd0$answer.txt)")
-echo "Using default system Berkeley..."
+    sudo ./configure --with-gui=qt5 --with-boost-libdir=$(dirname "$(cat wrd0$answer.txt)")
+    echo "Using default system Berkeley..."
 fi
 
 sudo make -j$(nproc)
 
 if [ -e ~/CrypticCoin/src/qt/CrypticCoin-qt ]; then
-#sudo apt-get -y install pulseaudio
-#sudo apt-get -y install portaudio19-dev
-# synthetic voice 
-#cd ~
-#wget https://sourceforge.net/projects/espeak/files/espeak/espeak-1.48/espeak-1.48.04-source.zip/download
-#unzip -o download
-#cd espeak-1.48.04-source/src
-#cp portaudio19.h portaudio.h
-#make
-#cd ~
-sudo strip ~/CrypticCoin/src/CrypticCoind
-sudo strip ~/CrypticCoin/src/qt/CrypticCoin-qt
-sudo make install
+    #sudo apt-get -y install pulseaudio
+    #sudo apt-get -y install portaudio19-dev
+    # synthetic voice
+    #cd ~
+    #wget https://sourceforge.net/projects/espeak/files/espeak/espeak-1.48/espeak-1.48.04-source.zip/download
+    #unzip -o download
+    #cd espeak-1.48.04-source/src
+    #cp portaudio19.h portaudio.h
+    #make
+    #cd ~
+    sudo strip ~/CrypticCoin/src/CrypticCoind
+    sudo strip ~/CrypticCoin/src/qt/CrypticCoin-qt
+    sudo make install
 else
-echo "Compile fail not CrypticCoin-qt present"
+    echo "Compile fail not CrypticCoin-qt present"
 fi
 
 cd ~
