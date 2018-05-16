@@ -71,7 +71,19 @@ sudo apt-get -y install libseccomp-dev
 sudo apt-get -y install libcap-dev
 
 #// Install GMP library
-sudo apt-get -y install libgmp3-dev
+if [ ! -e /usr/local/lib/libgmp.a ]; then
+    wget https://gmplib.org/download/gmp/gmp-6.1.1.tar.bz2
+    tar -xvjf gmp-6.1.1.tar.bz2
+    rm gmp-6.1.1.tar.bz2
+
+    cd gmp-6.1.1
+    ./configure --enable-cxx
+    make && make check
+    sudo make install
+    cd ..
+
+    rm -rf gmp-6.1.1
+fi
 
 #// Install Sodium library
 if [ ! -e /usr/local/lib/libsodium.a ]; then
