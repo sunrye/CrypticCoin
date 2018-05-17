@@ -17,7 +17,7 @@ $(LIBLEVELDB) $(LIBMEMENV):
 endif
 
 BITCOIN_CONFIG_INCLUDES=-I$(builddir)/config
-BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS)#-std=c++11
+BITCOIN_INCLUDES=-I$(builddir) -I$(builddir)/obj $(BOOST_CPPFLAGS) $(LEVELDB_CPPFLAGS) $(CRYPTO_CFLAGS) $(SSL_CFLAGS) -std=c++11
 BITCOIN_INCLUDES += -I$(srcdir)/snark
 BITCOIN_INCLUDES += -I$(srcdir)/snark/libsnark
 
@@ -192,9 +192,9 @@ libbitcoin_server_a_SOURCES = \
   rpcnet.cpp \
   rpcrawtransaction.cpp \
   rpcsmessage.cpp \
+  primitives/transaction.cpp \
   $(JSON_H) \
-  $(BITCOIN_CORE_H) \
-  $(LIBZCASH_H)
+  $(BITCOIN_CORE_H)
 
 # wallet: shared between bitcoind and bitcoin-qt, but only linked
 # when wallet enabled
@@ -224,7 +224,6 @@ libbitcoin_common_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_common_a_SOURCES = \
   key.cpp \
   netbase.cpp \
-  primitives/transaction.cpp \
   protocol.cpp \
   script.cpp \
   hash.cpp \
@@ -257,8 +256,7 @@ libbitcoin_common_a_SOURCES = \
   Sponge.c \
   sph_sha2big.c \
   xxhash/xxhash.c \
-  $(BITCOIN_CORE_H) \
-  $(LIBZCASH_H)
+  $(BITCOIN_CORE_H)
 
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc

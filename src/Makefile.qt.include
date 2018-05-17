@@ -253,7 +253,13 @@ qt_CrypticCoin_qt_LDADD = qt/libbitcoinqt.a $(LIBBITCOIN_SERVER)
 if ENABLE_WALLET
  qt_CrypticCoin_qt_LDADD += $(LIBBITCOIN_WALLET)
 endif
-qt_CrypticCoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_SSE2) $(LIBLEVELDB) $(LIBMEMENV) \
+qt_CrypticCoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_UTIL) $(LIBBITCOIN_SSE2) \
+  $(LIBBITCOIN_CRYPTO) \
+  $(LIBZCASH) \
+  $(LIBSNARK) \
+  $(LIBLEVELDB) $(LIBMEMENV) \
+  $(LIBBITCOIN_CRYPTO) \
+  -lgomp $(LIBZCASH_LIBS) \
   $(BOOST_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS) \
   ../tor/src/or/libtor.a \
 	../tor/src/common/libor.a \
@@ -273,6 +279,7 @@ qt_CrypticCoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBBITCOIN_U
 if TARGET_LINUX
   qt_CrypticCoin_qt_LDADD += -lrt
 endif
+
 qt_CrypticCoin_qt_LDFLAGS = $(QT_LDFLAGS)
 
 #locale/foo.ts -> locale/foo.qm
