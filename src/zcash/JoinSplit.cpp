@@ -14,7 +14,7 @@
 #include <libsnark/zk_proof_systems/ppzksnark/r1cs_ppzksnark/r1cs_ppzksnark.hpp>
 #include <libsnark/gadgetlib1/gadgets/hashes/sha256/sha256_gadget.hpp>
 #include <libsnark/gadgetlib1/gadgets/merkle_tree/merkle_tree_check_read_gadget.hpp>
-//#include "tinyformat.h"
+#include "../util.h"
 #include "sync.h"
 #include "amount.h"
 
