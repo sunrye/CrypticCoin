@@ -98,9 +98,9 @@ nodist_test_crypticcoin_SOURCES = $(BUILT_SOURCES)
 
 $(BITCOIN_TESTS): $(BUILT_SOURCES)
 
-CLEAN_VERGE_TEST = test/*.gcda test/*.gcno $(BUILT_SOURCES)
+CLEAN_CRYPTICCOIN_TEST = test/*.gcda test/*.gcno $(BUILT_SOURCES)
 
-CLEANFILES += $(CLEAN_VERGE_TEST)
+CLEANFILES += $(CLEAN_CRYPTICCOIN_TEST)
 
 verge_test: $(TEST_BINARY)
 
@@ -108,7 +108,7 @@ verge_test_check: $(TEST_BINARY) FORCE
 		$(MAKE) check-TESTS TESTS=$^
 
 verge_test_clean : FORCE
-		rm -f $(CLEAN_VERGE_TEST) $(test_test_crypticcoin_OBJECTS) $(TEST_BINARY)
+		rm -f $(CLEAN_CRYPTICCOIN_TEST) $(test_test_crypticcoin_OBJECTS) $(TEST_BINARY)
 	
 %.json.h: %.json
 	@$(MKDIR_P) $(@D)
