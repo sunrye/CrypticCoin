@@ -219,7 +219,7 @@ else
     echo "Using default system Berkeley..."
 fi
 
-sudo make -j$(nproc)
+make -j$(nproc)
 
 if [ -e ~/CrypticCoin/src/qt/CrypticCoin-qt ]; then
     #sudo apt-get -y install pulseaudio

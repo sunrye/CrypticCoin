@@ -172,7 +172,7 @@ obj/build.h: FORCE
 	  $(abs_top_srcdir)
 libbitcoin_util_a-version.$(OBJEXT): obj/build.h
 
-# server: shared between bitcoind and bitcoin-qt
+# server: shared between CrypticCoind and CrypticCoin-qt
 libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
@@ -196,7 +196,7 @@ libbitcoin_server_a_SOURCES = \
   $(JSON_H) \
   $(BITCOIN_CORE_H)
 
-# wallet: shared between bitcoind and bitcoin-qt, but only linked
+# wallet: shared between CrypticCoind and CrypticCoin-qt, but only linked
 # when wallet enabled
 libbitcoin_wallet_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_SOURCES = \
@@ -218,7 +218,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha256.cpp \
   crypto/sha256.h
 
-# common: shared between bitcoind, and bitcoin-qt and non-server tools
+# common: shared between CrypticCoind, and CrypticCoin-qt and non-server tools
 libbitcoin_common_a_CPPFLAGS = $(BITCOIN_INCLUDES)
 #libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
@@ -276,7 +276,7 @@ libbitcoin_util_a_SOURCES += compat/glibcxx_compat.cpp
 endif
 
 nodist_libbitcoin_util_a_SOURCES = $(srcdir)/obj/build.h
-# bitcoind binary #
+# CrypticCoind binary #
 CrypticCoind_LDADD = \
   $(LIBBITCOIN_SERVER) \
   $(LIBBITCOIN_COMMON) \

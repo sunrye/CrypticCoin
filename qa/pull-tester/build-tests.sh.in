@@ -62,9 +62,9 @@ if [ -d "$OUT_DIR" -a -w "$OUT_DIR" ]; then
   cp @abs_top_srcdir@/win32-build/src/test/test_bitcoin.exe $OUT_DIR/test_bitcoin.exe
   cp @abs_top_srcdir@/win32-build/src/qt/bitcoind-qt.exe $OUT_DIR/bitcoin-qt.exe
   # Linux:
-  cp @abs_top_srcdir@/linux-build/src/bitcoind $OUT_DIR/bitcoind
+  cp @abs_top_srcdir@/linux-build/src/CrypticCoind $OUT_DIR/CrypticCoind
   cp @abs_top_srcdir@/linux-build/src/test/test_bitcoin $OUT_DIR/test_bitcoin
-  cp @abs_top_srcdir@/linux-build/src/qt/bitcoind-qt $OUT_DIR/bitcoin-qt
+  cp @abs_top_srcdir@/linux-build/src/qt/CrypticCoin-qt $OUT_DIR/CrypticCoin-qt
   set -e
 fi
 

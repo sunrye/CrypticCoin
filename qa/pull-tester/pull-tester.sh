@@ -11,8 +11,8 @@ if [ $# -lt 1 ]; then
   echo "usage: $0 [bitcoin srcroot] build-test arguments..."
 fi
 
-killall -q bitcoin-cli
-killall -q bitcoind
+killall -q CrypticCoin-qt
+killall -q CrypticCoind
 
 cd $1
 shift

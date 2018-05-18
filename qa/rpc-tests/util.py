@@ -77,11 +77,11 @@ def initialize_chain(test_dir):
                 f.write("rpcpassword=rt\n");
                 f.write("port="+str(START_P2P_PORT+i)+"\n");
                 f.write("rpcport="+str(START_RPC_PORT+i)+"\n");
-            args = [ "bitcoind", "-keypool=1", "-datadir="+datadir ]
+            args = [ "CrypticCoind", "-keypool=1", "-datadir="+datadir ]
             if i > 0:
                 args.append("-connect=127.0.0.1:"+str(START_P2P_PORT))
             bitcoind_processes.append(subprocess.Popen(args))
-            subprocess.check_call([ "bitcoin-cli", "-datadir="+datadir,
+            subprocess.check_call([ "CrypticCoind", "-datadir="+datadir,
                                     "-rpcwait", "getblockcount"], stdout=devnull)
         devnull.close()
         rpcs = []
@@ -138,11 +138,11 @@ def start_nodes(num_nodes, dir, extra_args=None, rpchost=None):
     devnull = open("/dev/null", "w+")
     for i in range(num_nodes):
         datadir = os.path.join(dir, "node"+str(i))
-        args = [ "bitcoind", "-datadir="+datadir ]
+        args = [ "CrypticCoind", "-datadir="+datadir ]
         if extra_args is not None:
             args += extra_args[i]
         bitcoind_processes.append(subprocess.Popen(args))
-        subprocess.check_call([ "bitcoin-cli", "-datadir="+datadir] +
+        subprocess.check_call([ "CrypticCoind", "-datadir="+datadir] +
                                   _rpchost_to_args(rpchost)  +
                                   ["-rpcwait", "getblockcount"], stdout=devnull)
     devnull.close()
