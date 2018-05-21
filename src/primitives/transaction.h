@@ -895,8 +895,4 @@ protected:
 
 
 
-
-bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime);
-
-
 #endif //CRYPTICCOIN_TRANSACTION_H

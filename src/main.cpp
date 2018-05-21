@@ -262,17 +262,6 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
     return nEvicted;
 }
 
-
-bool IsFinalTx(const CTransaction &tx, int nBlockHeight)
-{
-    if (tx.nLockTime == 0)
-        return true;
-    BOOST_FOREACH(const CTxIn& txin, tx.vin)
-        if (!txin.IsFinal())
-            return false;
-    return true;
-}
-
 bool IsStandardTx(const CTransaction& tx)
 {
     bool isOverwinter = true;
@@ -295,18 +284,23 @@ bool IsStandardTx(const CTransaction& tx)
     // Basically we don't want to propagate transactions that can't included in
     // the next block.
     //
-    // However, IsFinalTx() is confusing... Without arguments, it uses
+    // However, IsFinal() is confusing... Without arguments, it uses
     // chainActive.Height() to evaluate nLockTime; when a block is accepted, chainActive.Height()
-    // is set to the value of nHeight in the block. However, when IsFinalTx()
+    // is set to the value of nHeight in the block. However, when IsFinal()
     // is called within CBlock::AcceptBlock(), the height of the block *being*
     // evaluated is what is used. Thus if we want to know if a transaction can
-    // be part of the *next* block, we need to call IsFinalTx() with one more
-    // than chainActive.Height().
+    // be part of the *next* block, we need to call IsFinal() with one more
+    // than nBestHeight.
     //
     // Timestamps on the other hand don't get any special treatment, because we
     // can't know what timestamp the next block will have, and there aren't
     // timestamp applications where it matters.
-    if (!IsFinalTx(tx, nBestHeight + 1)) {
+
+//    const int64_t nBlockTime = (flags & LOCKTIME_MEDIAN_TIME_PAST)
+//                               ? chainActive.Tip()->GetMedianTimePast()
+//                               : GetAdjustedTime();
+    const int64_t nBlockTime = GetAdjustedTime();
+    if (!tx.IsFinal(nBestHeight + 1, nBlockTime)) {
         return false;
     }
 
@@ -2126,7 +2120,7 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
     if (nTransactions == 0)
         return 0;
     // check for excessively high numbers of transactions
-    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction+        return 0; TODO: SS fix this
+    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction+        return 0;
     // there can never be more hashes provided than one for every txid
     if (vHash.size() > nTransactions)
         return 0;
