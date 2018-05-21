@@ -110,7 +110,8 @@ public:
     }
 
     template <size_t D, typename H>
-    friend bool operator==(const IncrementalMerkleTree<D, H> &a, const IncrementalMerkleTree<D, H> &b);
+    friend bool operator==(const IncrementalMerkleTree<D, H>& a,
+                           const IncrementalMerkleTree<D, H>& b);
 
 private:
     static EmptyMerkleRoots<Depth, Hash> emptyroots;
@@ -204,6 +205,9 @@ public:
 
     static SHA256Compress combine(const SHA256Compress& a, const SHA256Compress& b);
 };
+
+template<size_t Depth, typename Hash>
+EmptyMerkleRoots<Depth, Hash> IncrementalMerkleTree<Depth, Hash>::emptyroots;
 
 } // end namespace `libzcash`
 

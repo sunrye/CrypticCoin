@@ -265,7 +265,6 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight)
 {
-    // Time based nLockTime implemented in 0.1.6
     if (tx.nLockTime == 0)
         return true;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
@@ -276,8 +275,20 @@ bool IsFinalTx(const CTransaction &tx, int nBlockHeight)
 
 bool IsStandardTx(const CTransaction& tx)
 {
-//    if (tx.nVersion > CTransaction::CURRENT_VERSION)
-//        return false;
+    bool isOverwinter = true;
+   // bool isOverwinter = NetworkUpgradeActive(nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER);
+
+    if (isOverwinter) {
+        // Overwinter standard rules apply
+        if (tx.nVersion > CTransaction::OVERWINTER_MAX_CURRENT_VERSION || tx.nVersion < CTransaction::OVERWINTER_MIN_CURRENT_VERSION) {
+            return false;
+        }
+    } else {
+        // Sprout standard rules apply
+        if (tx.nVersion > CTransaction::SPROUT_MAX_CURRENT_VERSION || tx.nVersion < CTransaction::SPROUT_MIN_CURRENT_VERSION) {
+            return false;
+        }
+    }
 
     // Treat non-final transactions as non-standard to prevent a specific type
     // of double-spend attack, as well as DoS attacks. (if the transaction
@@ -306,27 +317,40 @@ bool IsStandardTx(const CTransaction& tx)
 
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
-        // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
-        // pay-to-script-hash, which is 3 ~80-byte signatures, 3
-        // ~65-byte public keys, plus a few script ops.
-        if (txin.scriptSig.size() > 500)
+        // Biggest 'standard' txin is a 15-of-15 P2SH multisig with compressed
+        // keys. (remember the 520 byte limit on redeemScript size) That works
+        // out to a (15*(33+1))+3=513 byte redeemScript, 513+1+15*(73+1)+3=1627
+        // bytes of scriptSig, which we round off to 1650 bytes for some minor
+        // future-proofing. That's also enough to spend a 20-of-20
+        // CHECKMULTISIG scriptPubKey, though such a scriptPubKey is not
+        // considered standard)
+        if (txin.scriptSig.size() > 1650)
             return false;
         if (!txin.scriptSig.IsPushOnly())
             return false;
     }
 
     unsigned int nDataOut = 0;
-    unsigned int nTxnOut = 0;
 
+    txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, tx.vout) {
-        if (!::IsStandard(txout.scriptPubKey))
+        if (!::IsStandard(txout.scriptPubKey, whichType))
             return false;
+
+        if (whichType == TX_NULL_DATA)
+            nDataOut++;
+        else if (whichType == TX_MULTISIG) {
+            return false;
+        } else if (txout.nValue < tx.GetMinFee()) {
+            return false;
+        }
+
         if (txout.nValue == 0)
             return false;
     }
 
     // only one OP_RETURN txout per txn out is permitted
-    if (nDataOut > nTxnOut) {
+    if (nDataOut > 1) {
         return false;
     }
 
@@ -418,7 +442,7 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
         return error("CTxMemPool::accept() : not accepting nLockTime beyond 2038 yet");
 
     // Rather not work on nonstandard transactions (unless -testnet)
-    if (!fTestNet && !tx.IsStandard())
+    if (!fTestNet && !IsStandardTx(tx))
         return error("CTxMemPool::accept() : nonstandard transaction type");
 
     // Do we already have it?
@@ -2102,7 +2126,7 @@ uint256 CPartialMerkleTree::ExtractMatches(std::vector<uint256> &vMatch) {
     if (nTransactions == 0)
         return 0;
     // check for excessively high numbers of transactions
-    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction+        return 0;
+    if (nTransactions > MAX_BLOCK_SIZE / 60) // 60 is the lower bound for the size of a serialized CTransaction+        return 0; TODO: SS fix this
     // there can never be more hashes provided than one for every txid
     if (vHash.size() > nTransactions)
         return 0;
@@ -3828,12 +3852,12 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int algo)
 
     // How much of the block should be dedicated to high-priority transactions,
     // included regardless of the fees they pay
-    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", 27000);
+    unsigned int nBlockPrioritySize = GetArg("-blockprioritysize", DEFAULT_BLOCK_PRIORITY_SIZE);
     nBlockPrioritySize = std::min(nBlockMaxSize, nBlockPrioritySize);
 
     // Minimum block size you want to create; block will be filled with free transactions
     // until there are no more or the block reaches this size:
-    unsigned int nBlockMinSize = GetArg("-blockminsize", 0);
+    unsigned int nBlockMinSize = GetArg("-blockminsize", DEFAULT_BLOCK_MIN_SIZE);
     nBlockMinSize = std::min(nBlockMaxSize, nBlockMinSize);
 
     // Fee-per-kilobyte amount considered the same as "free"
@@ -4001,7 +4025,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int algo)
             // Prioritize by fee once past the priority size or we run out of high-priority
             // transactions:
             if (!fSortedByFee &&
-                ((nBlockSize + nTxSize >= nBlockPrioritySize) || (dPriority < COIN * 144 / 250)))
+                ((nBlockSize + nTxSize >= nBlockPrioritySize) || !(tx.AllowFree(dPriority))))
             {
                 fSortedByFee = true;
                 comparer = TxPriorityCompare(fSortedByFee);
@@ -4024,6 +4048,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int algo)
             if (nBlockSigOps + nTxSigOps >= MAX_BLOCK_SIGOPS)
                 continue;
 
+            // TODO: SS ContextualCheckInputs
             if (!tx.ConnectInputs(txdb, mapInputs, mapTestPoolTmp, CDiskTxPos(1,1,1), pindexPrev, false, true))
                 continue;
             mapTestPoolTmp[tx.GetHash()] = CTxIndex(CDiskTxPos(1,1,1), tx.vout.size());

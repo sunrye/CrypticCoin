@@ -510,28 +510,6 @@ public:
         return SerializeHash(*this);
     }
 
-    // CAmount GetDustThreshold(const CFeeRate &minRelayTxFee) const
-    // {
-    //     // "Dust" is defined in terms of CTransaction::minRelayTxFee,
-    //     // which has units satoshis-per-kilobyte.
-    //     // If you'd pay more than 1/3 in fees
-    //     // to spend something, then we consider it dust.
-    //     // A typical spendable txout is 34 bytes big, and will
-    //     // need a CTxIn of at least 148 bytes to spend:
-    //     // so dust is a spendable txout less than 54 satoshis
-    //     // with default minRelayTxFee.
-    //     if (scriptPubKey.IsUnspendable())
-    //         return 0;
-
-    //     size_t nSize = GetSerializeSize(*this, SER_DISK, 0) + 148u;
-    //     return 3*minRelayTxFee.GetFee(nSize);
-    // }
-
-    // bool IsDust(const CFeeRate &minRelayTxFee) const
-    // {
-    //     return (nValue < GetDustThreshold(minRelayTxFee));
-    // }
-
     friend bool operator==(const CTxOut& a, const CTxOut& b)
     {
         return (a.nValue       == b.nValue &&
@@ -757,11 +735,6 @@ public:
     }
 
     /** Check for standard transaction types
-        @return True if all outputs (scriptPubKeys) use only standard transaction forms
-    */
-    bool IsStandard() const;
-
-    /** Check for standard transaction types
         @param[in] mapInputs	Map of previous transactions that have outputs we're spending
         @return True if all inputs (scriptSigs) use only standard transaction forms
         @see CTransaction::FetchInputs
@@ -923,7 +896,6 @@ protected:
 
 
 
-bool IsStandardTx(const CTransaction& tx);
 bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime);
 
 

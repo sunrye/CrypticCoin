@@ -35,12 +35,16 @@ static const int SAME_ALGO_MAX_COUNT = 6;
 //moved to consensus.h
 //static const unsigned int MAX_BLOCK_SIZE = 1000000;
 //static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
+/** Default for -blockprioritysize, maximum space for zero/low-fee transactions **/
+static const unsigned int DEFAULT_BLOCK_MIN_SIZE = 0;
+static const unsigned int DEFAULT_BLOCK_PRIORITY_SIZE = 27000;
+
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const int64 HALF_HELMING_BLOCKS = 1048320; // Number of block which will be mined in one year, two, three and etc.
 static const int64 LAST_BLOCK_WITH_REWARDS = 6361141;
-static const int DISABLE_POS_BLOCK = 1;
+static const int DISABLE_POS_BLOCK = 1; // TODO: SS Is remove it?
 
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
@@ -128,6 +132,7 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan);
 const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfStake);
 void CrypticCoinMiner(CWallet *pwallet, bool fProofOfStake);
 void ResendWalletTransactions();
+bool IsStandardTx(const CTransaction& tx);
 
 enum
 {

@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(sign)
         txFrom.vout[i].scriptPubKey = evalScripts[i];
         txFrom.vout[i+4].scriptPubKey = standardScripts[i];
     }
-    BOOST_CHECK(txFrom.IsStandard());
+    BOOST_CHECK(IsStandardTx(txFrom));
 
     CTransaction txTo[8]; // Spending transactions
     for (int i = 0; i < 8; i++)
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(set)
     {
         txFrom.vout[i].scriptPubKey = outer[i];
     }
-    BOOST_CHECK(txFrom.IsStandard());
+    BOOST_CHECK(IsStandardTx(txFrom));
 
     CTransaction txTo[4]; // Spending transactions
     for (int i = 0; i < 4; i++)
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(set)
     for (int i = 0; i < 4; i++)
     {
         BOOST_CHECK_MESSAGE(SignSignature(keystore, txFrom, txTo[i], 0), strprintf("SignSignature %d", i));
-        BOOST_CHECK_MESSAGE(txTo[i].IsStandard(), strprintf("txTo[%d].IsStandard", i));
+        BOOST_CHECK_MESSAGE(IsStandardTx(txTo[i]), strprintf("IsStandardTx(txTo[%d])", i));
     }
 }
 
