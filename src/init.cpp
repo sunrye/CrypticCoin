@@ -93,6 +93,8 @@ void Shutdown(void* parg)
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
         delete pwalletMain;
+        delete pzcashParams;
+        pzcashParams = NULL;
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("CrypticCoin exited\n\n");

@@ -6,8 +6,6 @@
 #include "script.h"
 #include "uint256.h"
 #include "amount.h"
-// #include "util.h"
-// #include "version.h"
 #include "consensus/consensus.h"
 
 #include <boost/array.hpp>
@@ -885,7 +883,14 @@ public:
                        std::map<uint256, CTxIndex>& mapTestPool, const CDiskTxPos& posThisTx,
                        const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, bool fStrictPayToScriptHash=true);
     bool ClientConnectInputs();
-    bool CheckTransaction() const;
+    bool CheckTransactionWithoutProofVerification() const;
+    bool CheckTransaction() const {
+        return true; // TODO: SS fake check
+    }
+    bool CheckTransaction(libzcash::ProofVerifier& verifier);
+    bool ContextualCheckTransaction(const int nHeight, const int dosLevel);
+    bool CheckFinal(int flags);
+    bool IsExpired(int nBlockHeight);
     bool AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs=true, bool* pfMissingInputs=NULL);
     bool GetCoinAge(CTxDB& txdb, uint64& nCoinAge) const;  // ppcoin: get transaction coin age
 

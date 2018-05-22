@@ -5,6 +5,8 @@
 #include "checkpoints.h"
 #include "amount.h"
 #include "random.h"
+#include "util.h"
+#include "sodium.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -125,16 +127,180 @@ uint256 JSDescription::h_sig(ZCJoinSplit& params, const uint256& pubKeyHash) con
     return params.h_sig(randomSeed, nullifiers, pubKeyHash);
 }
 
+bool CTransaction::IsExpired(int nBlockHeight)
+{
+    if (nExpiryHeight == 0 || IsCoinBase()) {
+        return false;
+    }
+    return static_cast<uint32_t>(nBlockHeight) > nExpiryHeight;
+}
 
-bool CTransaction::CheckTransaction() const
+bool CTransaction::CheckFinal(int flags)
+{
+   //  AssertLockHeld(cs_main);
+    LOCK(cs_main);
+
+    // By convention a negative value for flags indicates that the
+    // current network-enforced consensus rules should be used. In
+    // a future soft-fork scenario that would mean checking which
+    // rules would be enforced for the next block and setting the
+    // appropriate flags. At the present time no soft-forks are
+    // scheduled, so no flags are set.
+    flags = std::max(flags, 0);
+
+
+    // Timestamps on the other hand don't get any special treatment,
+    // because we can't know what timestamp the next block will have,
+    // and there aren't timestamp applications where it matters.
+    // However this changes once median past time-locks are enforced:
+//    const int64_t nBlockTime = (flags & LOCKTIME_MEDIAN_TIME_PAST)
+//                               ? chainActive.Tip()->GetMedianTimePast()
+//                               : GetAdjustedTime();
+    const int64_t nBlockTime = GetAdjustedTime();
+
+    return IsFinal(nBestHeight + 1, nBlockTime);
+}
+
+
+/**
+ * Check a transaction contextually against a set of consensus rules valid at a given block height.
+ *
+ * Notes:
+ * 1. AcceptToMemoryPool calls CheckTransaction and this function.
+ * 2. ProcessNewBlock calls AcceptBlock, which calls CheckBlock (which calls CheckTransaction)
+ *    and ContextualCheckBlock (which calls this function).
+ */
+bool CTransaction::ContextualCheckTransaction(const int nHeight, const int dosLevel)
+{
+  //  bool isOverwinter = NetworkUpgradeActive(nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER);
+    bool isOverwinter = true; // TODO: SS isOverwinter always true!!
+    bool isSprout = !isOverwinter;
+
+    // If Sprout rules apply, reject transactions which are intended for Overwinter and beyond
+    if (isSprout && fOverwintered) {
+        return DoS(dosLevel, error("ContextualCheckTransaction(): overwinter is not active yet"));
+    }
+
+    // If Overwinter rules apply:
+    if (isOverwinter) {
+        // Reject transactions with valid version but missing overwinter flag
+        if (nVersion >= OVERWINTER_MIN_TX_VERSION && !fOverwintered) {
+            return DoS(dosLevel, error("ContextualCheckTransaction(): overwinter flag must be set"));
+        }
+
+        // Reject transactions with invalid version
+        if (fOverwintered && nVersion > OVERWINTER_MAX_TX_VERSION ) {
+            return DoS(100, error("CheckTransaction(): overwinter version too high"));
+        }
+
+        // Reject transactions intended for Sprout
+        if (!fOverwintered) {
+            return DoS(dosLevel, error("ContextualCheckTransaction: overwinter is active"));
+        }
+
+        // Check that all transactions are unexpired
+        if (IsExpired(nHeight)) {
+            // Don't increase banscore if the transaction only just expired
+            int expiredDosLevel = IsExpired(nHeight - 1) ? dosLevel : 0;
+            return DoS(expiredDosLevel, error("ContextualCheckTransaction(): transaction is expired"));
+        }
+    }
+
+    if (!(IsCoinBase() || vjoinsplit.empty())) {
+    //    auto consensusBranchId = CurrentEpochBranchId(nHeight, Params().GetConsensus());
+        // Empty output script.
+        CScript scriptCode;
+        uint256 dataToBeSigned;
+        try {
+          //  dataToBeSigned = SignatureHash(scriptCode, *this, NOT_AN_INPUT, SIGHASH_ALL, 0, consensusBranchId); // TODO: SS stop here
+        } catch (std::logic_error ex) {
+            return DoS(100, error("CheckTransaction(): error computing signature hash"));
+        }
+
+        BOOST_STATIC_ASSERT(crypto_sign_PUBLICKEYBYTES == 32);
+
+        // We rely on libsodium to check that the signature is canonical.
+        // https://github.com/jedisct1/libsodium/commit/62911edb7ff2275cccd74bf1c8aefcc4d76924e0
+        if (crypto_sign_verify_detached(&joinSplitSig[0],
+                                        dataToBeSigned.begin(), 32,
+                                        joinSplitPubKey.begin()
+        ) != 0) {
+            return DoS(100, error("CheckTransaction(): invalid joinsplit signature"));
+        }
+    }
+    return true;
+}
+
+bool CTransaction::CheckTransaction(libzcash::ProofVerifier& verifier)
+{
+    // Don't count coinbase transactions because mining skews the count
+    if (!IsCoinBase()) {
+        //  transactionsValidated.increment(); // TODO: SS ?
+    }
+
+    if (!CheckTransactionWithoutProofVerification()) {
+        return false;
+    } else {
+        // Ensure that zk-SNARKs verify
+        BOOST_FOREACH(const JSDescription &joinsplit, vjoinsplit) {
+            if (!joinsplit.Verify(*pzcashParams, verifier, joinSplitPubKey)) {
+                return DoS(100, error("CheckTransaction(): joinsplit does not verify"));
+            }
+        }
+        return true;
+    }
+}
+
+bool CTransaction::CheckTransactionWithoutProofVerification() const
 {
     // Basic checks that don't depend on any context
-    if (vin.empty())
+
+    /**
+     * Previously:
+     * 1. The consensus rule below was:
+     *        if (tx.nVersion < SPROUT_MIN_TX_VERSION) { ... }
+     *    which checked if tx.nVersion fell within the range:
+     *        INT32_MIN <= tx.nVersion < SPROUT_MIN_TX_VERSION
+     * 2. The parser allowed tx.nVersion to be negative
+     *
+     * Now:
+     * 1. The consensus rule checks to see if tx.Version falls within the range:
+     *        0 <= tx.nVersion < SPROUT_MIN_TX_VERSION
+     * 2. The previous consensus rule checked for negative values within the range:
+     *        INT32_MIN <= tx.nVersion < 0
+     *    This is unnecessary for Overwinter transactions since the parser now
+     *    interprets the sign bit as fOverwintered, so tx.nVersion is always >=0,
+     *    and when Overwinter is not active ContextualCheckTransaction rejects
+     *    transactions with fOverwintered set.  When fOverwintered is set,
+     *    this function and ContextualCheckTransaction will together check to
+     *    ensure tx.nVersion avoids the following ranges:
+     *        0 <= tx.nVersion < OVERWINTER_MIN_TX_VERSION
+     *        OVERWINTER_MAX_TX_VERSION < tx.nVersion <= INT32_MAX
+     */
+    if (!fOverwintered && nVersion < SPROUT_MIN_TX_VERSION) {
+        return DoS(100, error("CTransaction::CheckTransaction(): version too low"));
+    }
+    else if (fOverwintered) {
+        if (nVersion < OVERWINTER_MIN_TX_VERSION) {
+            return DoS(100, error("CTransaction::CheckTransaction(): overwinter version too low"));
+        }
+        if (nVersionGroupId != OVERWINTER_VERSION_GROUP_ID) {
+            return DoS(100, error("CTransaction::CheckTransaction(): unknown tx version group id"));
+        }
+        if (nExpiryHeight >= TX_EXPIRY_HEIGHT_THRESHOLD) {
+            return DoS(100, error("CTransaction::CheckTransaction(): expiry height is too high"));
+        }
+    }
+
+    // Basic checks that don't depend on any context
+    if (vin.empty() && vjoinsplit.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vin empty"));
-    if (vout.empty())
+    if (vout.empty() && vjoinsplit.empty())
         return DoS(10, error("CTransaction::CheckTransaction() : vout empty"));
+
     // Size limits
-    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_BLOCK_SIZE)
+    BOOST_STATIC_ASSERT(MAX_BLOCK_SIZE > MAX_TX_SIZE); // sanity
+    if (::GetSerializeSize(*this, SER_NETWORK, PROTOCOL_VERSION) > MAX_TX_SIZE)
         return DoS(100, error("CTransaction::CheckTransaction() : size limits failed"));
 
     // Check for negative or overflow output values
@@ -157,6 +323,51 @@ bool CTransaction::CheckTransaction() const
             return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range"));
     }
 
+    // Ensure that joinsplit values are well-formed
+    BOOST_FOREACH(const JSDescription& joinsplit, vjoinsplit)
+    {
+        if (joinsplit.vpub_old < 0) {
+            return DoS(100, error("CTransaction::CheckTransaction(): joinsplit.vpub_old negative"));
+        }
+
+        if (joinsplit.vpub_new < 0) {
+            return DoS(100, error("CTransaction::CheckTransaction(): joinsplit.vpub_new negative"));
+        }
+
+        if (joinsplit.vpub_old > MAX_MONEY) {
+            return DoS(100, error("CTransaction::CheckTransaction(): joinsplit.vpub_old too high"));
+        }
+
+        if (joinsplit.vpub_new > MAX_MONEY) {
+            return DoS(100, error("CTransaction::CheckTransaction(): joinsplit.vpub_new too high"));
+        }
+
+        if (joinsplit.vpub_new != 0 && joinsplit.vpub_old != 0) {
+            return DoS(100, error("CTransaction::CheckTransaction(): joinsplit.vpub_new and joinsplit.vpub_old both nonzero"));
+        }
+
+        nValueOut += joinsplit.vpub_old;
+        if (!MoneyRange(nValueOut)) {
+            return DoS(100, error("CTransaction::CheckTransaction(): txout total out of range"));
+        }
+    }
+
+    // Ensure input values do not exceed MAX_MONEY
+    // We have not resolved the txin values at this stage,
+    // but we do know what the joinsplits claim to add
+    // to the value pool.
+    {
+        CAmount nValueIn = 0;
+        for (std::vector<JSDescription>::const_iterator it(vjoinsplit.begin()); it != vjoinsplit.end(); ++it)
+        {
+            nValueIn += it->vpub_new;
+
+            if (!MoneyRange(it->vpub_new) || !MoneyRange(nValueIn)) {
+                return DoS(100, error("CTransaction::CheckTransaction(): txin total out of range"));
+            }
+        }
+    }
+
     // Check for duplicate inputs
     set<COutPoint> vInOutPoints;
     BOOST_FOREACH(const CTxIn& txin, vin)
@@ -166,8 +377,26 @@ bool CTransaction::CheckTransaction() const
         vInOutPoints.insert(txin.prevout);
     }
 
+    // Check for duplicate joinsplit nullifiers in this transaction
+    set<uint256> vJoinSplitNullifiers;
+    BOOST_FOREACH(const JSDescription& joinsplit, vjoinsplit)
+    {
+        BOOST_FOREACH(const uint256& nf, joinsplit.nullifiers)
+        {
+            if (vJoinSplitNullifiers.count(nf))
+                return DoS(100, error("CTransaction::CheckTransaction(): duplicate nullifiers"));
+
+            vJoinSplitNullifiers.insert(nf);
+        }
+    }
+
+
     if (IsCoinBase())
     {
+        // There should be no joinsplits in a coinbase transaction
+        if (vjoinsplit.size() > 0)
+            return DoS(100, error("CTransaction::CheckTransaction(): coinbase has joinsplits"));
+
         if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 100)
             return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size"));
     }

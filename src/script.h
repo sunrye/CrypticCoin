@@ -5,8 +5,10 @@
 #ifndef H_BITCOIN_SCRIPT
 #define H_BITCOIN_SCRIPT
 
-#include <string>
 #include <vector>
+#include <stdint.h>
+#include <string>
+#include <climits>
 
 #include <boost/foreach.hpp>
 #include <boost/variant.hpp>
@@ -21,6 +23,9 @@ class CTransaction;
 
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520; // bytes
 static const unsigned int MAX_OP_RETURN_RELAY = 48; // bytes
+
+/** Special case nIn for signing JoinSplits. */
+const unsigned int NOT_AN_INPUT = UINT_MAX;
 
 /** Signature hash types/flags */
 enum

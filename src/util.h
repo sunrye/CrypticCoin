@@ -15,6 +15,8 @@
 
 #include "compat.h"
 
+#include "zcash/JoinSplit.hpp"
+
 #include <map>
 #include <vector>
 #include <string>
@@ -163,6 +165,7 @@ extern bool fBloomFilters;
 extern bool fNoListen;
 extern bool fLogTimestamps;
 extern bool fReopenDebugLog;
+extern ZCJoinSplit* pzcashParams;
 
 void RandAddSeed();
 void RandAddSeedPerfmon();

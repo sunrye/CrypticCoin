@@ -73,6 +73,7 @@ namespace boost {
 
 } // namespace boost
 
+ZCJoinSplit* pzcashParams = NULL;
 
 using namespace std;
 

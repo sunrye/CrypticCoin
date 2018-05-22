@@ -279,31 +279,6 @@ bool IsStandardTx(const CTransaction& tx)
         }
     }
 
-    // Treat non-final transactions as non-standard to prevent a specific type
-    // of double-spend attack, as well as DoS attacks. (if the transaction
-    // Basically we don't want to propagate transactions that can't included in
-    // the next block.
-    //
-    // However, IsFinal() is confusing... Without arguments, it uses
-    // chainActive.Height() to evaluate nLockTime; when a block is accepted, chainActive.Height()
-    // is set to the value of nHeight in the block. However, when IsFinal()
-    // is called within CBlock::AcceptBlock(), the height of the block *being*
-    // evaluated is what is used. Thus if we want to know if a transaction can
-    // be part of the *next* block, we need to call IsFinal() with one more
-    // than nBestHeight.
-    //
-    // Timestamps on the other hand don't get any special treatment, because we
-    // can't know what timestamp the next block will have, and there aren't
-    // timestamp applications where it matters.
-
-//    const int64_t nBlockTime = (flags & LOCKTIME_MEDIAN_TIME_PAST)
-//                               ? chainActive.Tip()->GetMedianTimePast()
-//                               : GetAdjustedTime();
-    const int64_t nBlockTime = GetAdjustedTime();
-    if (!tx.IsFinal(nBestHeight + 1, nBlockTime)) {
-        return false;
-    }
-
     // Extremely large transactions with lots of inputs can cost the network
     // almost as much to process as they cost the sender in fees, because
     // computing signature hashes is O(ninputs*txsize). Limiting transactions
