@@ -17,6 +17,8 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 
+#include "consensus/upgrades.h"
+
 using namespace std;
 using namespace boost;
 
@@ -389,14 +391,38 @@ int CMerkleTx::SetMerkleBranch(const CBlock* pblock)
 
 
 
-bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
-                        bool* pfMissingInputs)
+bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs, bool* pfMissingInputs)
 {
     if (pfMissingInputs)
         *pfMissingInputs = false;
 
-    if (!tx.CheckTransaction())
-        return error("CTxMemPool::accept() : CheckTransaction failed");
+    //int nextBlockHeight = chainActive.Height() + 1;
+    int nextBlockHeight = nBestHeight+1;
+    //auto consensusBranchId = CurrentEpochBranchId(nextBlockHeight, Params().GetConsensus());
+
+    // Node operator can choose to reject tx by number of transparent inputs
+    static_assert(std::numeric_limits<size_t>::max() >= std::numeric_limits<int64_t>::max(), "size_t too small");
+    size_t limit = (size_t) GetArg("-mempooltxinputlimit", 0);
+    if (NetworkUpgradeActive(nextBlockHeight, Consensus::Params(), Consensus::UPGRADE_OVERWINTER)) {
+        limit = 0;
+    }
+    if (limit > 0) {
+        size_t n = tx.vin.size();
+        if (n > limit) {
+            return error("mempool", "Dropping txid %s : too many transparent inputs %zu > limit %zu\n", tx.GetHash().ToString(), n, limit );
+            return false;
+        }
+    }
+
+    auto verifier = libzcash::ProofVerifier::Strict();
+    // if (!CheckTransaction(tx, state, verifier))
+    //     return error("AcceptToMemoryPool: CheckTransaction failed");
+
+    // DoS level set to 10 to be more forgiving.
+    // Check transaction contextually against the set of consensus rules which apply in the next block to be mined.
+    // if (!ContextualCheckTransaction(tx, state, nextBlockHeight, 10)) {
+    //     return error("AcceptToMemoryPool: ContextualCheckTransaction failed");
+    // }
 
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
@@ -406,13 +432,15 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
     if (tx.IsCoinStake())
         return tx.DoS(100, error("CTxMemPool::accept() : coinstake as individual tx"));
 
-    // To help v0.1.5 clients who would see it as a negative number
-    if ((int64)tx.nLockTime > std::numeric_limits<int>::max())
-        return error("CTxMemPool::accept() : not accepting nLockTime beyond 2038 yet");
-
-    // Rather not work on nonstandard transactions (unless -testnet)
+    // // Rather not work on nonstandard transactions (unless -testnet)
     if (!fTestNet && !IsStandardTx(tx))
         return error("CTxMemPool::accept() : nonstandard transaction type");
+
+    // Only accept nLockTime-using transactions that can be mined in the next
+    // block; we don't want our mempool filled up with transactions that can't
+    // be mined yet.
+    if (!tx.CheckFinal(STANDARD_LOCKTIME_VERIFY_FLAGS))
+        return tx.DoS(0, error("CTxMemPool::accept() : non-final"));
 
     // Do we already have it?
     uint256 hash = tx.GetHash();
@@ -465,6 +493,43 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
             if (pfMissingInputs)
                 *pfMissingInputs = true;
             return false;
+        }
+
+
+        // are the actual inputs available?
+        // if (!view.HaveInputs(tx))
+        //     return state.Invalid(error("AcceptToMemoryPool: inputs already spent"),
+        //                          REJECT_DUPLICATE, "bad-txns-inputs-spent");
+
+        // are the joinsplit's requirements met?
+        std::map<uint256, ZCIncrementalMerkleTree> intermediates;
+
+        BOOST_FOREACH(const JSDescription &joinsplit, tx.vjoinsplit) {
+            // TODO: nullifiers get\set
+            // BOOST_FOREACH(const uint256& nullifier, joinsplit.nullifiers)
+            // {
+            //     if (GetNullifier(nullifier)) {
+            //         // If the nullifier is set, this transaction
+            //         // double-spends!
+            //         return false;
+            //     }
+            // }
+
+            ZCIncrementalMerkleTree tree;
+            auto it = intermediates.find(joinsplit.anchor);
+            if (it != intermediates.end()) {
+                tree = it->second;
+            } 
+            // TODO: anchors get\set
+            // else if (!GetAnchorAt(joinsplit.anchor, tree)) {
+            //     return false;
+            // }
+
+            BOOST_FOREACH(const uint256& commitment, joinsplit.commitments) {
+                tree.append(commitment);
+            }
+
+            intermediates.insert(std::make_pair(tree.root(), tree));
         }
 
         // Check for non-standard pay-to-script-hash in inputs
@@ -537,6 +602,7 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs,
     printf("CTxMemPool::accept() : accepted %s (poolsz %" PRIszu")\n",
            hash.ToString().substr(0,10).c_str(),
            mapTx.size());
+
     return true;
 }
 

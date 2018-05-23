@@ -29,13 +29,42 @@ static const int COINBASE_MATURITY = 100;
 /** The minimum value which is invalid for expiry height, used by CTransaction and CMutableTransaction */
 static constexpr uint32_t TX_EXPIRY_HEIGHT_THRESHOLD = 500000000;
 
-///** Flags for LockTime() */
-//enum {
-//    /* Use GetMedianTimePast() instead of nTime for end point timestamp. */
-//    LOCKTIME_MEDIAN_TIME_PAST = (1 << 1),
-//};
-//
-///** Used as the flags parameter to CheckFinalTx() in non-consensus code */
-//static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_MEDIAN_TIME_PAST;
+/** Flags for LockTime() */
+enum {
+   /* Use GetMedianTimePast() instead of nTime for end point timestamp. */
+   LOCKTIME_MEDIAN_TIME_PAST = (1 << 1),
+};
+
+/** Used as the flags parameter to CheckFinalTx() in non-consensus code */
+static const unsigned int STANDARD_LOCKTIME_VERIFY_FLAGS = LOCKTIME_MEDIAN_TIME_PAST;
+
+namespace Consensus {
+
+    /**
+     * Index into Params.vUpgrades and NetworkUpgradeInfo
+     *
+     * Being array indices, these MUST be numbered consecutively.
+     *
+     * The order of these indices MUST match the order of the upgrades on-chain, as
+     * several functions depend on the enum being sorted.
+     */
+    enum UpgradeIndex {
+        // Sprout must be first
+        BASE_SPROUT,
+        UPGRADE_TESTDUMMY,
+        UPGRADE_OVERWINTER,
+        // NOTE: Also add new upgrades to NetworkUpgradeInfo in upgrades.cpp
+        MAX_NETWORK_UPGRADES
+    };
+
+    struct NetworkUpgrade {
+
+    };
+
+    struct Params {
+
+    };
+
+}
 
 #endif // BITCOIN_CONSENSUS_CONSENSUS_H
