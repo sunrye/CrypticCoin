@@ -2322,8 +2322,7 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
 		{
 			block.nTime = 1517486400;
 			block.nNonce = 2;
-		}
-						
+		}						
 
 		if(fTestNet)
         {
@@ -2331,7 +2330,7 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
            printf("block.nTime = %u \n", block.nTime);
            printf("block.nNonce = %u \n", block.nNonce);
-           assert(block.hashMerkleRoot == uint256("0x431853f7f04575d06f82144114f942a447597e3a1f5cf0966869faf2acbf0304"));
+           assert(block.hashMerkleRoot == uint256("0xf24d16485444c179222420e0286506b9ad1d357f1ffb329f0621737eea79d39d"));
            block.print();
         }
         else
@@ -2340,7 +2339,7 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
            printf("block.nTime = %u \n", block.nTime);
            printf("block.nNonce = %u \n", block.nNonce);
-           assert(block.hashMerkleRoot == uint256("0x431853f7f04575d06f82144114f942a447597e3a1f5cf0966869faf2acbf0304"));
+           assert(block.hashMerkleRoot == uint256("0xf24d16485444c179222420e0286506b9ad1d357f1ffb329f0621737eea79d39d"));
            //=====
            // If genesis block hash does not match, then generate new genesis hash.
            if (block.GetHash() != hashGenesisBlock)
