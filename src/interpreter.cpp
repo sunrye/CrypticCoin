@@ -17,7 +17,8 @@ namespace {
  * Wrapper that serializes like CTransaction, but with the modifications
  *  required for the signature hash done in-place
  */
-class CTransactionSignatureSerializer {
+class CTransactionSignatureSerializer
+{
 private:
     const CTransaction &txTo;  //! reference to the spending transaction (the one being serialized)
     const CScript &scriptCode; //! output script being consumed
@@ -35,7 +36,8 @@ public:
 
     /** Serialize the passed scriptCode */
     template<typename S>
-    void SerializeScriptCode(S &s, int nType, int nVersion) const {
+    void SerializeScriptCode(S &s, int nType, int nVersion) const
+    {
         auto size = scriptCode.size();
         ::WriteCompactSize(s, size);
         s.write((char*)&scriptCode.begin()[0], size);
@@ -43,7 +45,8 @@ public:
 
     /** Serialize an input of txTo */
     template<typename S>
-    void SerializeInput(S &s, unsigned int nInput, int nType, int nVersion) const {
+    void SerializeInput(S &s, unsigned int nInput, int nType, int nVersion) const
+    {
         // In case of SIGHASH_ANYONECANPAY, only the input being signed is serialized
         if (fAnyoneCanPay)
             nInput = nIn;
@@ -66,7 +69,8 @@ public:
 
     /** Serialize an output of txTo */
     template<typename S>
-    void SerializeOutput(S &s, unsigned int nOutput, int nType, int nVersion) const {
+    void SerializeOutput(S &s, unsigned int nOutput, int nType, int nVersion) const
+    {
         if (fHashSingle && nOutput != nIn)
             // Do not lock-in the txout payee at other indices as txin
             ::Serialize(s, CTxOut(), nType, nVersion);
@@ -76,7 +80,8 @@ public:
 
     /** Serialize txTo */
     template<typename S>
-    void Serialize(S &s, int nType, int nVersion) const {
+    void Serialize(S &s, int nType, int nVersion) const
+    {
         // Serialize nVersion
         ::Serialize(s, txTo.nVersion, nType, nVersion);
         // Serialize vin
@@ -93,7 +98,8 @@ public:
         ::Serialize(s, txTo.nLockTime, nType, nVersion);
 
         // Serialize vjoinsplit
-        if (txTo.nVersion >= 2) {
+        if (txTo.nVersion >= 2)
+        {
             //
             // SIGHASH_* functions will hash portions of
             // the transaction for use in signatures. This
@@ -101,7 +107,8 @@ public:
             // to the transaction.
             //
             ::Serialize(s, txTo.vjoinsplit, nType, nVersion);
-            if (txTo.vjoinsplit.size() > 0) {
+            if (txTo.vjoinsplit.size() > 0)
+            {
                 ::Serialize(s, txTo.joinSplitPubKey, nType, nVersion);
 
                 CTransaction::joinsplit_sig_t nullSig = {};
@@ -120,33 +127,41 @@ const unsigned char ZCASH_OUTPUTS_HASH_PERSONALIZATION[crypto_generichash_blake2
 const unsigned char ZCASH_JOINSPLITS_HASH_PERSONALIZATION[crypto_generichash_blake2b_PERSONALBYTES] =
         {'Z','c','a','s','h','J','S','p','l','i','t','s','H','a','s','h'};
 
-uint256 GetPrevoutHash(const CTransaction& txTo) {
+uint256 GetPrevoutHash(const CTransaction& txTo)
+{
     CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_PREVOUTS_HASH_PERSONALIZATION);
-    for (unsigned int n = 0; n < txTo.vin.size(); n++) {
+    for (unsigned int n = 0; n < txTo.vin.size(); n++)
+    {
         ss << txTo.vin[n].prevout;
     }
     return ss.GetHash();
 }
 
-uint256 GetSequenceHash(const CTransaction& txTo) {
+uint256 GetSequenceHash(const CTransaction& txTo)
+{
     CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_SEQUENCE_HASH_PERSONALIZATION);
-    for (unsigned int n = 0; n < txTo.vin.size(); n++) {
+    for (unsigned int n = 0; n < txTo.vin.size(); n++)
+    {
         ss << txTo.vin[n].nSequence;
     }
     return ss.GetHash();
 }
 
-uint256 GetOutputsHash(const CTransaction& txTo) {
+uint256 GetOutputsHash(const CTransaction& txTo)
+{
     CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
-    for (unsigned int n = 0; n < txTo.vout.size(); n++) {
+    for (unsigned int n = 0; n < txTo.vout.size(); n++)
+    {
         ss << txTo.vout[n];
     }
     return ss.GetHash();
 }
 
-uint256 GetJoinSplitsHash(const CTransaction& txTo) {
+uint256 GetJoinSplitsHash(const CTransaction& txTo)
+{
     CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_JOINSPLITS_HASH_PERSONALIZATION);
-    for (unsigned int n = 0; n < txTo.vjoinsplit.size(); n++) {
+    for (unsigned int n = 0; n < txTo.vjoinsplit.size(); n++)
+    {
         ss << txTo.vjoinsplit[n];
     }
     ss << txTo.joinSplitPubKey;
@@ -165,9 +180,12 @@ PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo)
 
 SigVersion SignatureHashVersion(const CTransaction& txTo)
 {
-    if (txTo.fOverwintered) {
+    if (txTo.fOverwintered)
+    {
         return SIGVERSION_OVERWINTER;
-    } else {
+    }
+    else
+    {
         return SIGVERSION_SPROUT;
     }
 }
@@ -181,36 +199,44 @@ uint256 SignatureHash(
         uint32_t consensusBranchId,
         const PrecomputedTransactionData* cache)
 {
-    if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT) {
-        //  nIn out of range
-        throw logic_error("input index is out of range");
+    if (nIn >= txTo.vin.size() && nIn != NOT_AN_INPUT)
+    {
+        printf("ERROR: SignatureHash() : nIn=%d out of range\n", nIn);
+        return 1;
     }
 
     auto sigversion = SignatureHashVersion(txTo);
 
-    if (sigversion == SIGVERSION_OVERWINTER) {
+    if (sigversion == SIGVERSION_OVERWINTER)
+    {
         uint256 hashPrevouts;
         uint256 hashSequence;
         uint256 hashOutputs;
         uint256 hashJoinSplits;
 
-        if (!(nHashType & SIGHASH_ANYONECANPAY)) {
+        if (!(nHashType & SIGHASH_ANYONECANPAY))
+        {
             hashPrevouts = cache ? cache->hashPrevouts : GetPrevoutHash(txTo);
         }
 
-        if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+        if (!(nHashType & SIGHASH_ANYONECANPAY) && (nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE)
+        {
             hashSequence = cache ? cache->hashSequence : GetSequenceHash(txTo);
         }
 
-        if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE) {
+        if ((nHashType & 0x1f) != SIGHASH_SINGLE && (nHashType & 0x1f) != SIGHASH_NONE)
+        {
             hashOutputs = cache ? cache->hashOutputs : GetOutputsHash(txTo);
-        } else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size()) {
+        }
+        else if ((nHashType & 0x1f) == SIGHASH_SINGLE && nIn < txTo.vout.size())
+        {
             CBLAKE2bWriter ss(SER_GETHASH, 0, ZCASH_OUTPUTS_HASH_PERSONALIZATION);
             ss << txTo.vout[nIn];
             hashOutputs = ss.GetHash();
         }
 
-        if (!txTo.vjoinsplit.empty()) {
+        if (!txTo.vjoinsplit.empty())
+        {
             hashJoinSplits = cache ? cache->hashJoinSplits : GetJoinSplitsHash(txTo);
         }
 
@@ -241,7 +267,8 @@ uint256 SignatureHash(
 
         // If this hash is for a transparent input signature
         // (i.e. not for txTo.joinSplitSig):
-        if (nIn != NOT_AN_INPUT){
+        if (nIn != NOT_AN_INPUT)
+        {
             // The input being signed (replacing the scriptSig with scriptCode + amount)
             // The prevout may already be contained in hashPrevout, and the nSequence
             // may already be contained in hashSequence.
@@ -255,10 +282,13 @@ uint256 SignatureHash(
     }
 
     // Check for invalid use of SIGHASH_SINGLE
-    if ((nHashType & 0x1f) == SIGHASH_SINGLE) {
-        if (nIn >= txTo.vout.size()) {
-            //  nOut out of range
-            throw logic_error("no matching output for SIGHASH_SINGLE");
+    if ((nHashType & 0x1f) == SIGHASH_SINGLE)
+    {
+        // Only lock-in the txout payee at same index as txin
+        if (nIn >= txTo.vout.size())
+        {
+            printf("ERROR: SignatureHash() : nOut=%d out of range\n", nIn);
+            return 1;
         }
     }
 

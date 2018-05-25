@@ -24,177 +24,6 @@ class CBlockIndex;
 
 // Overwinter transaction version
 static const int32_t OVERWINTER_TX_VERSION = 3;
-static_assert(OVERWINTER_TX_VERSION >= OVERWINTER_MIN_TX_VERSION,
-              "Overwinter tx version must not be lower than minimum");
-static_assert(OVERWINTER_TX_VERSION <= OVERWINTER_MAX_TX_VERSION,
-              "Overwinter tx version must not be higher than maximum");
-
-// Sapling transaction version
-static const int32_t SAPLING_TX_VERSION = 4;
-static_assert(SAPLING_TX_VERSION >= SAPLING_MIN_TX_VERSION,
-              "Sapling tx version must not be lower than minimum");
-static_assert(SAPLING_TX_VERSION <= SAPLING_MAX_TX_VERSION,
-              "Sapling tx version must not be higher than maximum");
-
-static constexpr size_t GROTH_PROOF_SIZE = (
-        48 + // π_A
-        96 + // π_B
-        48); // π_C
-
-namespace libzcash {
-    typedef boost::array<unsigned char, GROTH_PROOF_SIZE> GrothProof;
-}
-
-/**
- * A shielded input to a transaction. It contains data that describes a Spend transfer.
- */
-class SpendDescription
-{
-public:
-    typedef boost::array<unsigned char, 64> spend_auth_sig_t;
-
-    uint256 cv;                    //!< A value commitment to the value of the input note.
-    uint256 anchor;                //!< A Merkle root of the Sapling note commitment tree at some block height in the past.
-    uint256 nullifier;             //!< The nullifier of the input note.
-    uint256 rk;                    //!< The randomized public key for spendAuthSig.
-    libzcash::GrothProof zkproof;  //!< A zero-knowledge proof using the spend circuit.
-    spend_auth_sig_t spendAuthSig; //!< A signature authorizing this spend.
-
-    SpendDescription() { }
-
-    IMPLEMENT_SERIALIZE
-    (
-        READWRITE(cv);
-        READWRITE(anchor);
-        READWRITE(nullifier);
-        READWRITE(rk);
-        READWRITE(zkproof);
-        READWRITE(spendAuthSig);
-    );
-
-    friend bool operator==(const SpendDescription& a, const SpendDescription& b)
-    {
-        return (
-                a.cv == b.cv &&
-                a.anchor == b.anchor &&
-                a.nullifier == b.nullifier &&
-                a.rk == b.rk &&
-                a.zkproof == b.zkproof &&
-                a.spendAuthSig == b.spendAuthSig
-        );
-    }
-
-    friend bool operator!=(const SpendDescription& a, const SpendDescription& b)
-    {
-        return !(a == b);
-    }
-};
-
-static constexpr size_t SAPLING_ENC_CIPHERTEXT_SIZE = (
-        1 +  // leading byte
-        11 + // d
-        8 +  // value
-        32 + // rcm
-        ZC_MEMO_SIZE + // memo
-        NOTEENCRYPTION_AUTH_BYTES);
-
-static constexpr size_t SAPLING_OUT_CIPHERTEXT_SIZE = (
-        32 + // pkd_new
-        32 + // esk
-        NOTEENCRYPTION_AUTH_BYTES);
-
-/**
- * A shielded output to a transaction. It contains data that describes an Output transfer.
- */
-class OutputDescription
-{
-public:
-    typedef boost::array<unsigned char, SAPLING_ENC_CIPHERTEXT_SIZE> sapling_enc_ct_t; // TODO: Replace with actual type
-    typedef boost::array<unsigned char, SAPLING_OUT_CIPHERTEXT_SIZE> sapling_out_ct_t; // TODO: Replace with actual type
-
-    uint256 cv;                     //!< A value commitment to the value of the output note.
-    uint256 cm;                     //!< The note commitment for the output note.
-    uint256 ephemeralKey;           //!< A Jubjub public key.
-    sapling_enc_ct_t encCiphertext; //!< A ciphertext component for the encrypted output note.
-    sapling_out_ct_t outCiphertext; //!< A ciphertext component for the encrypted output note.
-    libzcash::GrothProof zkproof;   //!< A zero-knowledge proof using the output circuit.
-
-    OutputDescription() { }
-
-    IMPLEMENT_SERIALIZE
-    (
-        READWRITE(cv);
-        READWRITE(cm);
-        READWRITE(ephemeralKey);
-        READWRITE(encCiphertext);
-        READWRITE(outCiphertext);
-        READWRITE(zkproof);
-    );
-
-    friend bool operator==(const OutputDescription& a, const OutputDescription& b)
-    {
-        return (
-                a.cv == b.cv &&
-                a.cm == b.cm &&
-                a.ephemeralKey == b.ephemeralKey &&
-                a.encCiphertext == b.encCiphertext &&
-                a.outCiphertext == b.outCiphertext &&
-                a.zkproof == b.zkproof
-        );
-    }
-
-    friend bool operator!=(const OutputDescription& a, const OutputDescription& b)
-    {
-        return !(a == b);
-    }
-};
-
-template <typename Stream>
-class SproutProofSerializer : public boost::static_visitor<>
-{
-    Stream& s;
-    bool useGroth;
-
-public:
-    SproutProofSerializer(Stream& s, bool useGroth) : s(s), useGroth(useGroth) {}
-
-    void operator()(const libzcash::ZCProof& proof) const
-    {
-        if (useGroth) {
-            throw std::ios_base::failure("Invalid Sprout proof for transaction format (expected GrothProof, found PHGRProof)");
-        }
-        ::Serialize(s, proof);
-    }
-
-    void operator()(const libzcash::GrothProof& proof) const
-    {
-        if (!useGroth) {
-            throw std::ios_base::failure("Invalid Sprout proof for transaction format (expected PHGRProof, found GrothProof)");
-        }
-        ::Serialize(s, proof);
-    }
-};
-
-template<typename Stream, typename T>
-inline void SerReadWriteSproutProof(Stream& s, const T& proof, bool useGroth, CSerActionSerialize ser_action)
-{
-    auto ps = SproutProofSerializer<Stream>(s, useGroth);
-    boost::apply_visitor(ps, proof);
-}
-
-template<typename Stream, typename T>
-inline void SerReadWriteSproutProof(Stream& s, T& proof, bool useGroth, CSerActionUnserialize ser_action)
-{
-    if (useGroth) {
-        libzcash::GrothProof grothProof;
-        ::Unserialize(s, grothProof);
-        proof = grothProof;
-    } else {
-        libzcash::ZCProof pghrProof;
-        ::Unserialize(s, pghrProof);
-        proof = pghrProof;
-    }
-}
 
 class JSDescription
 {
@@ -242,7 +71,7 @@ public:
 
     // JoinSplit proof
     // This is a zk-SNARK which ensures that this JoinSplit is valid.
-    boost::variant<libzcash::ZCProof, libzcash::GrothProof> proof;
+    libzcash::ZCProof proof;
 
     JSDescription(): vpub_old(0), vpub_new(0) { }
 
@@ -284,10 +113,6 @@ public:
 
     IMPLEMENT_SERIALIZE
     (
-//        bool fOverwintered = s.GetVersion() >> 31;    // TODO: SS Stream& s
-//        int32_t txVersion = s.GetVersion() & 0x7FFFFFFF;
-//        bool useGroth = fOverwintered && txVersion >= SAPLING_TX_VERSION;
-
         READWRITE(vpub_old);
         READWRITE(vpub_new);
         READWRITE(anchor);
@@ -296,7 +121,7 @@ public:
         READWRITE(ephemeralKey);
         READWRITE(randomSeed);
         READWRITE(macs);
-        // ::SerReadWriteSproutProof(s, proof, useGroth, ser_action); // TODO: SS !
+        READWRITE(proof);
         READWRITE(ciphertexts);
     );
 
@@ -537,11 +362,6 @@ public:
 static constexpr uint32_t OVERWINTER_VERSION_GROUP_ID = 0x03C48270;
 static_assert(OVERWINTER_VERSION_GROUP_ID != 0, "version group id must be non-zero as specified in ZIP 202");
 
-// Sapling version group id
-static constexpr uint32_t SAPLING_VERSION_GROUP_ID = 0x892F2085;
-static_assert(SAPLING_VERSION_GROUP_ID != 0, "version group id must be non-zero as specified in ZIP 202");
-
-
 enum GetMinFee_mode
 {
     GMF_BLOCK,
@@ -558,15 +378,12 @@ class CTransaction
 {
 public:
     typedef boost::array<unsigned char, 64> joinsplit_sig_t;
-    typedef boost::array<unsigned char, 64> binding_sig_t;
 
     // Transactions that include a list of JoinSplits are >= version 2.
     static const int32_t SPROUT_MIN_CURRENT_VERSION = 1;
     static const int32_t SPROUT_MAX_CURRENT_VERSION = 2;
     static const int32_t OVERWINTER_MIN_CURRENT_VERSION = 3;
     static const int32_t OVERWINTER_MAX_CURRENT_VERSION = 3;
-    static const int32_t SAPLING_MIN_CURRENT_VERSION = 4;
-    static const int32_t SAPLING_MAX_CURRENT_VERSION = 4;
 
     static_assert(SPROUT_MIN_CURRENT_VERSION >= SPROUT_MIN_TX_VERSION,
                   "standard rule for tx version should be consistent with network rule");
@@ -576,14 +393,7 @@ public:
 
     static_assert( (OVERWINTER_MAX_CURRENT_VERSION <= OVERWINTER_MAX_TX_VERSION &&
                     OVERWINTER_MAX_CURRENT_VERSION >= OVERWINTER_MIN_CURRENT_VERSION),
-                   "standard rule for tx version should be consistent with network rule");
-
-    static_assert(SAPLING_MIN_CURRENT_VERSION >= SAPLING_MIN_TX_VERSION,
                   "standard rule for tx version should be consistent with network rule");
-
-    static_assert( (SAPLING_MAX_CURRENT_VERSION <= SAPLING_MAX_TX_VERSION &&
-                    SAPLING_MAX_CURRENT_VERSION >= SAPLING_MIN_CURRENT_VERSION),
-                   "standard rule for tx version should be consistent with network rule");
 
     // The local variables are made const to prevent unintended modification
     // without updating the cached hash value. However, CTransaction is not
@@ -596,15 +406,11 @@ public:
     uint32_t nTime;
     std::vector<CTxIn> vin;
     std::vector<CTxOut> vout;
-    uint32_t nLockTime; 
+    uint32_t nLockTime;
     uint32_t nExpiryHeight;
-    CAmount valueBalance;
-    std::vector<SpendDescription> vShieldedSpend;
-    std::vector<OutputDescription> vShieldedOutput;
     std::vector<JSDescription> vjoinsplit;
     uint256 joinSplitPubKey;
     CTransaction::joinsplit_sig_t joinSplitSig = {{0}};
-    CTransaction::binding_sig_t bindingSig = {{0}};
 
     // Denial-of-service detection:
     mutable int nDoS;
@@ -627,11 +433,7 @@ public:
                 fOverwintered &&
                 nVersionGroupId == OVERWINTER_VERSION_GROUP_ID &&
                 nVersion == OVERWINTER_TX_VERSION;
-        bool isSaplingV4 =
-                fOverwintered &&
-                nVersionGroupId == SAPLING_VERSION_GROUP_ID &&
-                nVersion == SAPLING_TX_VERSION;
-        if (fOverwintered && !(isOverwinterV3 || isSaplingV4)) {
+        if (fOverwintered && !isOverwinterV3) {
             throw std::ios_base::failure("Unknown transaction format");
         }
 
@@ -639,24 +441,15 @@ public:
         READWRITE(vout);
         READWRITE(nTime);
         READWRITE(nLockTime);
-        if (isOverwinterV3 || isSaplingV4) {
+        if (isOverwinterV3) {
             READWRITE(nExpiryHeight);
         }
-        if (isSaplingV4) {
-            READWRITE(valueBalance);
-            READWRITE(vShieldedSpend);
-            READWRITE(vShieldedOutput);
-        }
         if (nVersion >= 2) {
-           // auto os = WithVersion(&s, static_cast<int>(header)); // TODO: SS !
-           // ::SerReadWrite(os, vjoinsplit, ser_action);
-           // if (vjoinsplit.size() > 0) {
+            READWRITE(vjoinsplit);
+            if (vjoinsplit.size() > 0) {
                 READWRITE(joinSplitPubKey);
                 READWRITE(joinSplitSig);
-           // }
-        }
-        if (isSaplingV4 && !(vShieldedSpend.empty() && vShieldedOutput.empty())) {
-            READWRITE(bindingSig);
+            }
         }
     )
 
@@ -670,13 +463,9 @@ public:
         vin.clear();
         vout.clear();
         nLockTime = 0;
-        valueBalance = 0;
-        vShieldedSpend.clear();
-        vShieldedOutput.clear();
         vjoinsplit.clear();
         joinSplitPubKey = uint256();
         joinSplitSig = boost::array<unsigned char, 64>();
-        bindingSig = boost::array<unsigned char, 64>();
         nDoS = 0;  // Denial-of-service prevention
     }
 
@@ -808,21 +597,6 @@ public:
                              vin.size(),
                              vout.size(),
                              nLockTime);
-        }
-            else if (nVersion >= SAPLING_MIN_TX_VERSION)
-        {
-            str += strprintf("CTransaction(hash=%s, ver=%d, fOverwintered=%d, nVersionGroupId=%08x, vin.size=%u, vout.size=%u, nLockTime=%u, nExpiryHeight=%u, valueBalance=%u, vShieldedSpend.size=%u, vShieldedOutput.size=%u)\n",
-                             GetHash().ToString().substr(0,10),
-                             nVersion,
-                             fOverwintered,
-                             nVersionGroupId,
-                             vin.size(),
-                             vout.size(),
-                             nLockTime,
-                             nExpiryHeight,
-                             valueBalance,
-                             vShieldedSpend.size(),
-                             vShieldedOutput.size());
         }
             else if (nVersion >= 3)
         {

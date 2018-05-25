@@ -78,50 +78,23 @@ JSDescription JSDescription::Randomized(
     );
 }
 
-class SproutProofVerifier : public boost::static_visitor<bool>
-{
-    ZCJoinSplit& params;
-    libzcash::ProofVerifier& verifier;
-    const uint256& pubKeyHash;
-    const JSDescription& jsdesc;
-
-public:
-    SproutProofVerifier(
-            ZCJoinSplit& params,
-            libzcash::ProofVerifier& verifier,
-            const uint256& pubKeyHash,
-            const JSDescription& jsdesc
-    ) : params(params), jsdesc(jsdesc), verifier(verifier), pubKeyHash(pubKeyHash) {}
-
-    bool operator()(const libzcash::ZCProof& proof) const
-    {
-        return params.verify(
-                proof,
-                verifier,
-                pubKeyHash,
-                jsdesc.randomSeed,
-                jsdesc.macs,
-                jsdesc.nullifiers,
-                jsdesc.commitments,
-                jsdesc.vpub_old,
-                jsdesc.vpub_new,
-                jsdesc.anchor
-        );
-    }
-
-    bool operator()(const libzcash::GrothProof& proof) const
-    {
-        return false;
-    }
-};
-
 bool JSDescription::Verify(
         ZCJoinSplit& params,
         libzcash::ProofVerifier& verifier,
         const uint256& pubKeyHash
 ) const {
-    auto pv = SproutProofVerifier(params, verifier, pubKeyHash, *this);
-    return boost::apply_visitor(pv, proof);
+    return params.verify(
+            proof,
+            verifier,
+            pubKeyHash,
+            randomSeed,
+            macs,
+            nullifiers,
+            commitments,
+            vpub_old,
+            vpub_new,
+            anchor
+    );
 }
 
 uint256 JSDescription::h_sig(ZCJoinSplit& params, const uint256& pubKeyHash) const
@@ -174,8 +147,7 @@ bool CTransaction::CheckFinal(int flags)
  */
 bool CTransaction::ContextualCheckTransaction(const int nHeight, const int dosLevel)
 {
-  //  bool isOverwinter = NetworkUpgradeActive(nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER);
-    bool isOverwinter = true; // TODO: SS isOverwinter always true!!
+    bool isOverwinter = NetworkUpgradeActive(nHeight, Consensus::Params(), Consensus::UPGRADE_OVERWINTER); // TODO: SS Params().GetConsensus()
     bool isSprout = !isOverwinter;
 
     // If Sprout rules apply, reject transactions which are intended for Overwinter and beyond

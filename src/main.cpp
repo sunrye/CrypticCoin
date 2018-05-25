@@ -266,8 +266,7 @@ unsigned int LimitOrphanTxSize(unsigned int nMaxOrphans)
 
 bool IsStandardTx(const CTransaction& tx)
 {
-    bool isOverwinter = true;
-   // bool isOverwinter = NetworkUpgradeActive(nHeight, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER);
+    bool isOverwinter = NetworkUpgradeActive(nBestHeight, Consensus::Params(), Consensus::UPGRADE_OVERWINTER); // TODO: SS Params().GetConsensus()
 
     if (isOverwinter) {
         // Overwinter standard rules apply
@@ -702,7 +701,7 @@ bool CMerkleTx::AcceptToMemoryPool(CTxDB& txdb, bool fCheckInputs)
             return false;
         return CTransaction::AcceptToMemoryPool(txdb, false);
     }
-    
+
     return CTransaction::AcceptToMemoryPool(txdb, fCheckInputs);
 }
 
