@@ -27,6 +27,9 @@ static const unsigned int MAX_OP_RETURN_RELAY = 48; // bytes
 /** Special case nIn for signing JoinSplits. */
 const unsigned int NOT_AN_INPUT = UINT_MAX;
 
+// Maximum script length in bytes
+static const int MAX_SCRIPT_SIZE = 10000;
+
 /** Signature hash types/flags */
 enum
 {
@@ -624,4 +627,5 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 // combine them intelligently and return the result.
 CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsigned int nIn, const CScript& scriptSig1, const CScript& scriptSig2);
 
+bool CastToBool(const valtype& vch);
 #endif

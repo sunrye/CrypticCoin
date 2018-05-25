@@ -7,6 +7,8 @@
 #include "random.h"
 #include "util.h"
 #include "sodium.h"
+#include "interpreter.h"
+#include "consensus/upgrades.h"
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -207,12 +209,12 @@ bool CTransaction::ContextualCheckTransaction(const int nHeight, const int dosLe
     }
 
     if (!(IsCoinBase() || vjoinsplit.empty())) {
-    //    auto consensusBranchId = CurrentEpochBranchId(nHeight, Params().GetConsensus());
+        auto consensusBranchId = CurrentEpochBranchId(nHeight, Consensus::Params()); // TODO: SS Params().GetConsensus()
         // Empty output script.
         CScript scriptCode;
         uint256 dataToBeSigned;
         try {
-          //  dataToBeSigned = SignatureHash(scriptCode, *this, NOT_AN_INPUT, SIGHASH_ALL, 0, consensusBranchId); // TODO: SS stop here
+          dataToBeSigned = SignatureHash(scriptCode, *this, NOT_AN_INPUT, SIGHASH_ALL, 0, consensusBranchId);
         } catch (std::logic_error ex) {
             return DoS(100, error("CheckTransaction(): error computing signature hash"));
         }
