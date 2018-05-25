@@ -236,6 +236,7 @@ libbitcoin_common_a_SOURCES = \
   blake2s-ref.c \
   bmw.c \
   cubehash.c \
+  consensus/upgrades.cpp \
   echo.c \
   jh.c \
   keccak.c \

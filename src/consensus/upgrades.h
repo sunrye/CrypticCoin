@@ -6,6 +6,7 @@
 #define ZCASH_CONSENSUS_UPGRADES_H
 
 #include "consensus.h"
+#include <string>
 
 struct NUInfo {
     /** Branch ID (a random non-zero 32-bit value) */
@@ -20,43 +21,14 @@ struct NUInfo {
  * General information about each network upgrade.
  * Ordered by Consensus::UpgradeIndex.
  */
-const struct NUInfo NetworkUpgradeInfo[Consensus::MAX_NETWORK_UPGRADES] = {
-        {
-                /*.nBranchId =*/ 0,
-                /*.strName =*/ "Sprout",
-                /*.strInfo =*/ "The Zcash network at launch",
-        },
-        {
-                /*.nBranchId =*/ 0x74736554,
-                /*.strName =*/ "Test dummy",
-                /*.strInfo =*/ "Test dummy info",
-        },
-        {
-                /*.nBranchId =*/ 0x5ba81b19,
-                /*.strName =*/ "Overwinter",
-                /*.strInfo =*/ "See https://z.cash/upgrade/overwinter.html for details.",
-        }
-};
+extern const struct NUInfo NetworkUpgradeInfo[Consensus::MAX_NETWORK_UPGRADES];
 
- const uint32_t SPROUT_BRANCH_ID = NetworkUpgradeInfo[Consensus::BASE_SPROUT].nBranchId;
+extern const uint32_t SPROUT_BRANCH_ID;
 
-bool NetworkUpgradeActive(int nHeight, const Consensus::Params& params, Consensus::UpgradeIndex idx)
-{
-    return true;
-}
+bool NetworkUpgradeActive(int nHeight, const Consensus::Params& params, Consensus::UpgradeIndex idx);
 
-int CurrentEpoch(int nHeight, const Consensus::Params& params) {
-    for (auto idxInt = Consensus::MAX_NETWORK_UPGRADES - 1; idxInt >= Consensus::BASE_SPROUT; idxInt--) {
-        if (NetworkUpgradeActive(nHeight, params, Consensus::UpgradeIndex(idxInt))) {
-            return idxInt;
-        }
-    }
-    // Base case
-    return Consensus::BASE_SPROUT;
-}
+int CurrentEpoch(int nHeight, const Consensus::Params& params);
 
-uint32_t CurrentEpochBranchId(int nHeight, const Consensus::Params& params) {
-    return NetworkUpgradeInfo[CurrentEpoch(nHeight, params)].nBranchId;
-}
+uint32_t CurrentEpochBranchId(int nHeight, const Consensus::Params& params);
 
 #endif // ZCASH_CONSENSUS_UPGRADES_H
