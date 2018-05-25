@@ -97,6 +97,7 @@ BITCOIN_CORE_H = \
   coincontrol.h \
   compat.h \
   consensus/consensus.h \
+  consensus/upgrades.h \
   crypter.h \
   lz4/lz4.h \
   sph_groestl.h \
@@ -137,6 +138,7 @@ BITCOIN_CORE_H = \
   mruset.h \
   netbase.h \
   net.h \
+  interpreter.h \
   primitives/transaction.h \
   protocol.h \
   script.h \
@@ -225,6 +227,7 @@ libbitcoin_common_a_SOURCES = \
   key.cpp \
   netbase.cpp \
   protocol.cpp \
+  interpreter.cpp \
   script.cpp \
   hash.cpp \
   kernel.cpp \
