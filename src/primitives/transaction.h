@@ -658,10 +658,7 @@ public:
                        const CBlockIndex* pindexBlock, bool fBlock, bool fMiner, bool fStrictPayToScriptHash=true);
     bool ClientConnectInputs();
     bool CheckTransactionWithoutProofVerification() const;
-    bool CheckTransaction() const {
-        return true; // TODO: SS fake check
-    }
-    bool CheckTransaction(libzcash::ProofVerifier& verifier);
+    bool CheckTransaction(libzcash::ProofVerifier& verifier) const;
     bool ContextualCheckTransaction(const int nHeight, const int dosLevel);
     bool CheckFinal(int flags);
     bool IsExpired(int nBlockHeight);

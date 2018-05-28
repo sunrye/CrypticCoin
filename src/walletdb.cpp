@@ -203,7 +203,8 @@ ReadKeyValue(CWallet* pwallet, CDataStream& ssKey, CDataStream& ssValue,
             ssKey >> hash;
             CWalletTx& wtx = pwallet->mapWallet[hash];
             ssValue >> wtx;
-            if (wtx.CheckTransaction() && (wtx.GetHash() == hash))
+            auto verifier = libzcash::ProofVerifier::Strict();
+            if (wtx.CheckTransaction(verifier) && (wtx.GetHash() == hash))
                 wtx.BindWallet(pwallet);
             else
             {

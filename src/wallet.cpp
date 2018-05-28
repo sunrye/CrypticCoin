@@ -979,7 +979,8 @@ void CWallet::ResendWalletTransactions()
         BOOST_FOREACH(PAIRTYPE(const unsigned int, CWalletTx*)& item, mapSorted)
         {
             CWalletTx& wtx = *item.second;
-            if (wtx.CheckTransaction())
+            auto verifier = libzcash::ProofVerifier::Disabled();
+            if (wtx.CheckTransaction(verifier))
                 wtx.RelayWalletTransaction(txdb);
             else
                 printf("ResendWalletTransactions() : CheckTransaction failed for transaction %s\n", wtx.GetHash().ToString().c_str());

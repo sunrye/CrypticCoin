@@ -113,7 +113,6 @@ bool CTransaction::IsExpired(int nBlockHeight)
 bool CTransaction::CheckFinal(int flags)
 {
    //  AssertLockHeld(cs_main);
-    LOCK(cs_main);
 
     // By convention a negative value for flags indicates that the
     // current network-enforced consensus rules should be used. In
@@ -148,10 +147,9 @@ bool CTransaction::CheckFinal(int flags)
 bool CTransaction::ContextualCheckTransaction(const int nHeight, const int dosLevel)
 {
     bool isOverwinter = NetworkUpgradeActive(nHeight, Consensus::Params(), Consensus::UPGRADE_OVERWINTER); // TODO: SS Params().GetConsensus()
-    bool isSprout = !isOverwinter;
 
     // If Sprout rules apply, reject transactions which are intended for Overwinter and beyond
-    if (isSprout && fOverwintered) {
+    if (!isOverwinter && fOverwintered) {
         return DoS(dosLevel, error("ContextualCheckTransaction(): overwinter is not active yet"));
     }
 
@@ -205,7 +203,7 @@ bool CTransaction::ContextualCheckTransaction(const int nHeight, const int dosLe
     return true;
 }
 
-bool CTransaction::CheckTransaction(libzcash::ProofVerifier& verifier)
+bool CTransaction::CheckTransaction(libzcash::ProofVerifier& verifier) const
 {
     // Don't count coinbase transactions because mining skews the count
     if (!IsCoinBase()) {

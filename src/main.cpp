@@ -414,14 +414,14 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs, bool* 
     }
 
     auto verifier = libzcash::ProofVerifier::Strict();
-    // if (!CheckTransaction(tx, state, verifier))
-    //     return error("AcceptToMemoryPool: CheckTransaction failed");
+     if (!tx.CheckTransaction(verifier))
+         return error("AcceptToMemoryPool: CheckTransaction failed");
 
     // DoS level set to 10 to be more forgiving.
     // Check transaction contextually against the set of consensus rules which apply in the next block to be mined.
-    // if (!ContextualCheckTransaction(tx, state, nextBlockHeight, 10)) {
-    //     return error("AcceptToMemoryPool: ContextualCheckTransaction failed");
-    // }
+     if (!tx.ContextualCheckTransaction(nextBlockHeight, 10)) {
+         return error("AcceptToMemoryPool: ContextualCheckTransaction failed");
+     }
 
     // Coinbase is only valid in a block, not as a loose transaction
     if (tx.IsCoinBase())
@@ -1152,8 +1152,19 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
 
 bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 {
+    bool fExpensiveChecks = true;
+//    if (fCheckpointsEnabled) { // TODO: SS ?
+//        CBlockIndex *pindexLastCheckpoint = Checkpoints::GetLastCheckpoint(chainparams.Checkpoints());
+//        if (pindexLastCheckpoint && pindexLastCheckpoint->GetAncestor(pindex->nHeight) == pindex) {
+//            // This block is an ancestor of a checkpoint: disable script checks
+//            fExpensiveChecks = false;
+//        }
+//    }
+
+    auto verifier = libzcash::ProofVerifier::Strict();
+    auto disabledVerifier = libzcash::ProofVerifier::Disabled();
     // Check it again in case a previous version let a bad block in
-    if (!CheckBlock(!fJustCheck, !fJustCheck, false))
+    if (!CheckBlock(fExpensiveChecks ? verifier : disabledVerifier, !fJustCheck, !fJustCheck, false))
         return false;
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
@@ -1622,7 +1633,7 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos)
     return true;
 }
 
-bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
+bool CBlock::CheckBlock(libzcash::ProofVerifier& verifier, bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) const
 {
     // These are checks that are independent of context
     // that can be verified before saving an orphan block.
@@ -1671,7 +1682,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     // Check transactions
     BOOST_FOREACH(const CTransaction& tx, vtx)
     {
-        if (!tx.CheckTransaction())
+        if (!tx.CheckTransaction(verifier))
             return DoS(tx.nDoS, error("CheckBlock() : CheckTransaction failed"));
 
         // ppcoin: check transaction timestamp
@@ -1707,6 +1718,43 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
 
     return true;
 }
+
+//bool CBlock::ContextualCheckBlock(CBlockIndex * const pindexPrev)
+//{
+//    const int nHeight = pindexPrev == NULL ? 0 : pindexPrev->nHeight + 1;
+//
+//    // Check that all transactions are finalized
+//    BOOST_FOREACH(const CTransaction& tx, vtx) {
+//
+//        // Check transaction contextually against consensus rules at block height
+//        if (!tx.ContextualCheckTransaction(nHeight, 100)) {
+//            return false; // Failure reason has been set in validation state object
+//        }
+//
+//        int nLockTimeFlags = 0;
+//        int64_t nLockTimeCutoff = (nLockTimeFlags & LOCKTIME_MEDIAN_TIME_PAST)
+//                                  ? pindexPrev->GetMedianTimePast()
+//                                  : GetBlockTime();
+//        if (!tx.IsFinal(nHeight, nLockTimeCutoff)) {
+//            return DoS(10, error("%s: contains a non-final transaction", __func__));
+//        }
+//    }
+//
+//    // Enforce BIP 34 rule that the coinbase starts with serialized block height.
+//    // In Zcash this has been enforced since launch, except that the genesis
+//    // block didn't include the height in the coinbase (see Zcash protocol spec
+//    // section '6.8 Bitcoin Improvement Proposals').
+//    if (nHeight > 0)
+//    {
+//        CScript expect = CScript() << nHeight;
+//        if (vtx[0].vin[0].scriptSig.size() < expect.size() ||
+//            !std::equal(expect.begin(), expect.end(), vtx[0].vin[0].scriptSig.begin())) {
+//            return DoS(100, error("%s: block height mismatch in coinbase", __func__));
+//        }
+//    }
+//
+//    return true;
+//}
 
 bool CBlock::CheckPrevAlgo(CBlockIndex* pIndex)
 {
@@ -1834,7 +1882,8 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
         return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString().c_str(), pblock->GetProofOfStake().second, hash.ToString().c_str());
 
     // Preliminary checks
-    if (!pblock->CheckBlock())
+    auto verifier = libzcash::ProofVerifier::Disabled();
+    if (!pblock->CheckBlock(verifier))
         return error("ProcessBlock() : CheckBlock FAILED");
 
     // ppcoin: verify hash target and signature of coinstake tx
@@ -2391,7 +2440,8 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
 //        printf("block.nTime = %u \n", block.nTime);
 //        printf("block.nNonce = %u \n", block.nNonce);
 		assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
-		assert(block.CheckBlock());
+        auto verifier = libzcash::ProofVerifier::Disabled();
+		assert(block.CheckBlock(verifier));
 
         // Start new block file
         unsigned int nFile;
@@ -3304,7 +3354,6 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
         scriptPubKey << mapReuseKey[pfrom->addr] << OP_CHECKSIG;
         pfrom->PushMessage("reply", hashReply, (int)0, scriptPubKey);
     }
-
 
     else if (strCommand == "reply")
     {
