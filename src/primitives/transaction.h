@@ -628,6 +628,8 @@ public:
     bool ReadFromDisk(COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
 
+    bool CacheInputs(CTxDB& txdb);
+
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
 
      @param[in] txdb	Transaction database
