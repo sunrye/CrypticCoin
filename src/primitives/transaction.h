@@ -10,6 +10,7 @@
 
 #include <boost/array.hpp>
 #include <boost/variant.hpp>
+#include <map>
 
 #include "zcash/NoteEncryption.hpp"
 #include "zcash/Zcash.h"
@@ -24,6 +25,31 @@ class CBlockIndex;
 
 // Overwinter transaction version
 static const int32_t OVERWINTER_TX_VERSION = 3;
+
+struct CAnchorsCacheEntry
+{
+    bool entered; // This will be false if the anchor is removed from the cache
+    ZCIncrementalMerkleTree tree; // The tree itself
+    unsigned char flags;
+
+    enum Flags {
+        DIRTY = (1 << 0), // This cache entry is potentially different from the version in the parent view.
+    };
+
+    CAnchorsCacheEntry() : entered(false), flags(0) {}
+};
+
+struct CNullifiersCacheEntry
+{
+    bool entered; // If the nullifier is spent or not
+    unsigned char flags;
+
+    enum Flags {
+        DIRTY = (1 << 0), // This cache entry is potentially different from the version in the parent view.
+    };
+
+    CNullifiersCacheEntry() : entered(false), flags(0) {}
+};
 
 class JSDescription
 {
@@ -628,7 +654,7 @@ public:
     bool ReadFromDisk(COutPoint prevout);
     bool DisconnectInputs(CTxDB& txdb);
 
-    bool CacheInputs(CTxDB& txdb);
+    bool HaveJoinSplitRequirements(CTxDB& txdb, const std::map<uint256, CAnchorsCacheEntry>& cacheAnchor, std::map<uint256, CNullifiersCacheEntry>& cacheNullifiers);
 
     /** Fetch from memory and/or disk. inputsRet keys are transaction hashes.
 
@@ -670,7 +696,5 @@ public:
 protected:
     const CTxOut& GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const;
 };
-
-
 
 #endif //CRYPTICCOIN_TRANSACTION_H

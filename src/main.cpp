@@ -500,36 +500,43 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs, bool* 
         //     return state.Invalid(error("AcceptToMemoryPool: inputs already spent"),
         //                          REJECT_DUPLICATE, "bad-txns-inputs-spent");
 
+        std::map<uint256, CAnchorsCacheEntry> anchorsMap;
+        std::map<uint256, CNullifiersCacheEntry> nullifiersMap;
+
         // are the joinsplit's requirements met?
-        std::map<uint256, ZCIncrementalMerkleTree> intermediates;
+        if (!tx.HaveJoinSplitRequirements(txdb, anchorsMap, nullifiersMap))
+            return error("AcceptToMemoryPool: joinsplit requirements not met");
 
-        BOOST_FOREACH(const JSDescription &joinsplit, tx.vjoinsplit) {
-            // TODO: nullifiers get\set
-            // BOOST_FOREACH(const uint256& nullifier, joinsplit.nullifiers)
-            // {
-            //     if (GetNullifier(nullifier)) {
-            //         // If the nullifier is set, this transaction
-            //         // double-spends!
-            //         return false;
-            //     }
-            // }
+        // are the joinsplit's requirements met?
+        // std::map<uint256, ZCIncrementalMerkleTree> intermediates;
 
-            ZCIncrementalMerkleTree tree;
-            auto it = intermediates.find(joinsplit.anchor);
-            if (it != intermediates.end()) {
-                tree = it->second;
-            } 
-            // TODO: anchors get\set
-            // else if (!GetAnchorAt(joinsplit.anchor, tree)) {
-            //     return false;
-            // }
+        // BOOST_FOREACH(const JSDescription &joinsplit, tx.vjoinsplit) {
+        //     // TODO: nullifiers get\set
+        //     // BOOST_FOREACH(const uint256& nullifier, joinsplit.nullifiers)
+        //     // {
+        //     //     if (GetNullifier(nullifier)) {
+        //     //         // If the nullifier is set, this transaction
+        //     //         // double-spends!
+        //     //         return false;
+        //     //     }
+        //     // }
 
-            BOOST_FOREACH(const uint256& commitment, joinsplit.commitments) {
-                tree.append(commitment);
-            }
+        //     ZCIncrementalMerkleTree tree;
+        //     auto it = intermediates.find(joinsplit.anchor);
+        //     if (it != intermediates.end()) {
+        //         tree = it->second;
+        //     } 
+        //     // TODO: anchors get\set
+        //     // else if (!GetAnchorAt(joinsplit.anchor, tree)) {
+        //     //     return false;
+        //     // }
 
-            intermediates.insert(std::make_pair(tree.root(), tree));
-        }
+        //     BOOST_FOREACH(const uint256& commitment, joinsplit.commitments) {
+        //         tree.append(commitment);
+        //     }
+
+        //     intermediates.insert(std::make_pair(tree.root(), tree));
+        // }
 
         // Check for non-standard pay-to-script-hash in inputs
         if (!tx.AreInputsStandard(mapInputs) && !fTestNet)

@@ -529,9 +529,116 @@ bool CTransaction::FetchInputs(CTxDB& txdb, const map<uint256, CTxIndex>& mapTes
     return true;
 }
 
-bool CTransaction::CacheInputs(CTxDB& txdb)
+bool CTransaction::HaveJoinSplitRequirements(CTxDB& txdb, const std::map<uint256, CAnchorsCacheEntry>& cacheAnchor, std::map<uint256, CNullifiersCacheEntry>& cacheNullifiers)
 {
+    std::map<uint256, ZCIncrementalMerkleTree> intermediates;
+
+    BOOST_FOREACH(const JSDescription &joinsplit, vjoinsplit)
+    {
+        BOOST_FOREACH(const uint256& nullifier, joinsplit.nullifiers)
+        {
+            bool tmp = false;
+            std::map<uint256, CNullifiersCacheEntry>::iterator it = cacheNullifiers.find(nullifier);
+            if (it != cacheNullifiers.end())
+                tmp = it->second.entered;
+            else {
+                CNullifiersCacheEntry entry;
+                //tmp = base->GetNullifier(nullifier);
+                entry.entered = tmp;
+                cacheNullifiers.insert(std::make_pair(nullifier, entry));
+            }
+
+            if (tmp) {
+                // If the nullifier is set, this transaction
+                // double-spends!
+                return false;
+            }
+        }
+
+        ZCIncrementalMerkleTree tree;
+        auto it = intermediates.find(joinsplit.anchor);
+        if (it != intermediates.end()) {
+            tree = it->second;
+        } // else if (!GetAnchorAt(joinsplit.anchor, tree)) {
+        //     return false;
+        // }
+
+        BOOST_FOREACH(const uint256& commitment, joinsplit.commitments)
+        {
+            tree.append(commitment);
+        }
+
+        intermediates.insert(std::make_pair(tree.root(), tree));
+    }
+
     return true;
+
+    // fInvalid = false;
+
+    // if (IsCoinBase())
+    //     return true; // Coinbase transactions have no inputs to fetch.
+
+    // for (unsigned int i = 0; i < vin.size(); i++)
+    // {
+    //     COutPoint prevout = vin[i].prevout;
+    //     if (inputsRet.count(prevout.hash))
+    //         continue; // Got it already
+
+    //     // Read txindex
+    //     CTxIndex& txindex = inputsRet[prevout.hash].first;
+    //     bool fFound = true;
+    //     if ((fBlock || fMiner) && mapTestPool.count(prevout.hash))
+    //     {
+    //         // Get txindex from current proposed changes
+    //         txindex = mapTestPool.find(prevout.hash)->second;
+    //     }
+    //     else
+    //     {
+    //         // Read txindex from txdb
+    //         fFound = txdb.ReadTxIndex(prevout.hash, txindex);
+    //     }
+    //     if (!fFound && (fBlock || fMiner))
+    //         return fMiner ? false : error("FetchInputs() : %s prev tx %s index entry not found", GetHash().ToString().substr(0,10).c_str(),  prevout.hash.ToString().substr(0,10).c_str());
+
+    //     // Read txPrev
+    //     CTransaction& txPrev = inputsRet[prevout.hash].second;
+    //     if (!fFound || txindex.pos == CDiskTxPos(1,1,1))
+    //     {
+    //         // Get prev tx from single transactions in memory
+    //         {
+    //             LOCK(mempool.cs);
+    //             if (!mempool.exists(prevout.hash))
+    //                 return error("FetchInputs() : %s mempool Tx prev not found %s", GetHash().ToString().substr(0,10).c_str(),  prevout.hash.ToString().substr(0,10).c_str());
+    //             txPrev = mempool.lookup(prevout.hash);
+    //         }
+    //         if (!fFound)
+    //             txindex.vSpent.resize(txPrev.vout.size());
+    //     }
+    //     else
+    //     {
+    //         // Get prev tx from disk
+    //         if (!txPrev.ReadFromDisk(txindex.pos))
+    //             return error("FetchInputs() : %s ReadFromDisk prev tx %s failed", GetHash().ToString().substr(0,10).c_str(),  prevout.hash.ToString().substr(0,10).c_str());
+    //     }
+    // }
+
+    // // Make sure all prevout.n indexes are valid:
+    // for (unsigned int i = 0; i < vin.size(); i++)
+    // {
+    //     const COutPoint prevout = vin[i].prevout;
+    //     assert(inputsRet.count(prevout.hash) != 0);
+    //     const CTxIndex& txindex = inputsRet[prevout.hash].first;
+    //     const CTransaction& txPrev = inputsRet[prevout.hash].second;
+    //     if (prevout.n >= txPrev.vout.size() || prevout.n >= txindex.vSpent.size())
+    //     {
+    //         // Revisit this if/when transaction replacement is implemented and allows
+    //         // adding inputs:
+    //         fInvalid = true;
+    //         return DoS(100, error("FetchInputs() : %s prevout.n out of range %d %" PRIszu" %" PRIszu" prev tx %s\n%s", GetHash().ToString().substr(0,10).c_str(), prevout.n, txPrev.vout.size(), txindex.vSpent.size(), prevout.hash.ToString().substr(0,10).c_str(), txPrev.ToString().c_str()));
+    //     }
+    // }
+
+    // return true;
 }
 
 const CTxOut& CTransaction::GetOutputFor(const CTxIn& input, const MapPrevTx& inputs) const
