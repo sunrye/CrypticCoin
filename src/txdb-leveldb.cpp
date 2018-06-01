@@ -300,6 +300,26 @@ bool CTxDB::WriteCheckpointPubKey(const string& strPubKey)
     return Write(string("strCheckpointPubKey"), strPubKey);
 }
 
+bool CTxDB::ReadAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree)
+{
+    if (rt == ZCIncrementalMerkleTree::empty_root()) {
+        ZCIncrementalMerkleTree newTree;
+        tree = newTree;
+        return true;
+    }
+
+    bool read = Read(make_pair(string("an"), rt), tree);
+
+    return read;
+}
+
+bool CTxDB::ReadNullifier(const uint256 &nf)
+{
+    bool spent = false;
+    bool read = Read(make_pair(string("nu"), nf), spent);
+    return read;
+}
+
 static CBlockIndex *InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)

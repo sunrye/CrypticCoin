@@ -203,6 +203,8 @@ public:
     bool ReadCheckpointPubKey(std::string& strPubKey);
     bool WriteCheckpointPubKey(const std::string& strPubKey);
     bool LoadBlockIndex(CClientUIInterface* uiInterface=NULL);
+    bool ReadAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree);
+    bool ReadNullifier(const uint256 &nf);
 private:
     bool LoadBlockIndexGuts();
 };
