@@ -804,7 +804,7 @@ template<typename Stream, typename T>
 void Unserialize(Stream& is, boost::optional<T>& item, int nType, int nVersion)
 {
     unsigned char discriminant = 0x00;
-    Unserialize(is, discriminant);
+    Unserialize(is, discriminant, nType, nVersion);
 
     if (discriminant == 0x00)
     {
