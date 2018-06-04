@@ -620,3 +620,44 @@ bool CTxDB::LoadBlockIndex(CClientUIInterface* uiInterface)
 
     return true;
 }
+
+bool CTxDB::BatchWrite(const uint256 &hashAnchor,
+                       std::map<uint256, CAnchorsCacheEntry> &mapAnchors,
+                       std::map<uint256, CNullifiersCacheEntry> &mapNullifiers) {
+    for (std::map<uint256, CAnchorsCacheEntry>::iterator it = mapAnchors.begin(); it != mapAnchors.end();) {
+        if (it->second.flags & CAnchorsCacheEntry::DIRTY) {
+            if (!it->second.entered)
+                Erase(make_pair(string("an"), it->first));
+            else {
+                Write(make_pair(string("an"), it->first), it->second.tree);
+            }
+            // TODO: changed++?
+        }
+        std::map<uint256, CAnchorsCacheEntry>::iterator itOld = it++;
+        mapAnchors.erase(itOld);
+    }
+
+    for (std::map<uint256, CNullifiersCacheEntry>::iterator it = mapNullifiers.begin(); it != mapNullifiers.end();) {
+        if (it->second.flags & CNullifiersCacheEntry::DIRTY) {
+            if (!it->second.entered)
+                Erase(make_pair(string("nu"), it->first));
+            else
+                Write(make_pair(string("nu"), it->first), true);
+            // TODO: changed++?
+        }
+        std::map<uint256, CNullifiersCacheEntry>::iterator itOld = it++;
+        mapNullifiers.erase(itOld);
+    }
+
+    if (!hashAnchor.IsNull())
+        Write(string("bestAnchor"), hashAnchor);
+
+    return true;
+}
+
+bool CTxDB::Flush() {
+    bool fOk = BatchWrite(hashAnchor, anchorsMap, nullifiersMap);
+    anchorsMap.clear();
+    nullifiersMap.clear();
+    return fOk;
+}

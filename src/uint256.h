@@ -354,6 +354,19 @@ public:
         return (unsigned char*)&pn[WIDTH];
     }
 
+    void SetNull()
+    {
+        memset(pn, 0, sizeof(pn));
+    }
+
+    bool IsNull() const
+    {
+        for (int i = 0; i < WIDTH; ++i)
+            if (pn[i] != 0)
+                return false;
+        return true;
+    }
+
 	unsigned int size()
     {
         return sizeof(pn);

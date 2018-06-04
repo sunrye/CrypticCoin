@@ -71,6 +71,10 @@ map<uint256, uint256> mapProofOfStake;
 map<uint256, CDataStream*> mapOrphanTransactions;
 map<uint256, map<uint256, CDataStream*> > mapOrphanTransactionsByPrev;
 
+uint256 hashAnchor;
+std::map<uint256, CAnchorsCacheEntry> anchorsMap;
+std::map<uint256, CNullifiersCacheEntry> nullifiersMap;
+
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
@@ -500,8 +504,6 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx, bool fCheckInputs, bool* 
         //     return state.Invalid(error("AcceptToMemoryPool: inputs already spent"),
         //                          REJECT_DUPLICATE, "bad-txns-inputs-spent");
 
-        std::map<uint256, CAnchorsCacheEntry> anchorsMap;
-        std::map<uint256, CNullifiersCacheEntry> nullifiersMap;
 
         // are the joinsplit's requirements met?
         if (!tx.HaveJoinSplitRequirements(txdb, anchorsMap, nullifiersMap))

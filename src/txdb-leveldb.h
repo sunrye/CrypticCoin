@@ -205,6 +205,10 @@ public:
     bool LoadBlockIndex(CClientUIInterface* uiInterface=NULL);
     bool ReadAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree);
     bool ReadNullifier(const uint256 &nf);
+    bool BatchWrite(const uint256 &hashAnchor,
+                    std::map<uint256, CAnchorsCacheEntry> &mapAnchors,
+                    std::map<uint256, CNullifiersCacheEntry> &mapNullifiers);
+    bool Flush();
 private:
     bool LoadBlockIndexGuts();
 };
