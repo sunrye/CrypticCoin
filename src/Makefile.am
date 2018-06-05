@@ -235,6 +235,7 @@ libbitcoin_common_a_SOURCES = \
   smessage.cpp \
   stealth.cpp \
   groestl.c \
+  base58.cpp \
   blake.c \
   blake2s-ref.c \
   bmw.c \

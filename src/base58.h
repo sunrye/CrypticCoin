@@ -20,6 +20,7 @@
 #include "bignum.h"
 #include "key.h"
 #include "script.h"
+#include "zcash/Address.hpp"
 
 static const char* pszBase58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
@@ -124,7 +125,6 @@ inline bool DecodeBase58(const std::string& str, std::vector<unsigned char>& vch
 {
     return DecodeBase58(str.c_str(), vchRet);
 }
-
 
 
 
@@ -251,6 +251,98 @@ public:
     bool operator>=(const CBase58Data& b58) const { return CompareTo(b58) >= 0; }
     bool operator< (const CBase58Data& b58) const { return CompareTo(b58) <  0; }
     bool operator> (const CBase58Data& b58) const { return CompareTo(b58) >  0; }
+};
+
+/**
+ * CChainParams defines various tweakable parameters of a given instance of the
+ * Bitcoin system. There are three: the main network on which people trade goods
+ * and services, the public test network which gets reset from time to time and
+ * a regression test mode which is intended for private networks only. It has
+ * minimal difficulty to ensure that blocks can be found instantly.
+ */
+class CChainParams
+{
+public:
+    enum Base58Type {
+        PUBKEY_ADDRESS,
+        SCRIPT_ADDRESS,
+        SECRET_KEY,
+        EXT_PUBLIC_KEY,
+        EXT_SECRET_KEY,
+
+        ZCPAYMENT_ADDRRESS,
+        ZCSPENDING_KEY,
+        ZCVIEWING_KEY,
+
+        MAX_BASE58_TYPES
+    };
+
+    CChainParams () {
+        // guarantees the first 2 characters, when base58 encoded, are "t1"
+        base58Prefixes[PUBKEY_ADDRESS]     = {0x1C,0xB8};
+        // guarantees the first 2 characters, when base58 encoded, are "t3"
+        base58Prefixes[SCRIPT_ADDRESS]     = {0x1C,0xBD};
+        // the first character, when base58 encoded, is "5" or "K" or "L" (as in Bitcoin)
+        base58Prefixes[SECRET_KEY]         = {0x80};
+        // do not rely on these BIP32 prefixes; they are not specified and may change
+        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x88,0xB2,0x1E};
+        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
+        // guarantees the first 2 characters, when base58 encoded, are "zc"
+        base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0x9A};
+        // guarantees the first 4 characters, when base58 encoded, are "ZiVK"
+        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAB,0xD3};
+        // guarantees the first 2 characters, when base58 encoded, are "SK"
+        base58Prefixes[ZCSPENDING_KEY]     = {0xAB,0x36};
+    }
+
+    const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
+    
+protected:
+    std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
+};
+
+template<class DATA_TYPE, CChainParams::Base58Type PREFIX, size_t SER_SIZE>
+class CZCEncoding : public CBase58Data {
+protected:
+    virtual std::string PrependName(const std::string& s) const = 0;
+
+public:
+    bool Set(const DATA_TYPE& addr);
+
+    DATA_TYPE Get() const;
+};
+
+class CZCPaymentAddress : public CZCEncoding<libzcash::PaymentAddress, CChainParams::ZCPAYMENT_ADDRRESS, libzcash::SerializedPaymentAddressSize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "payment address" + s; }
+
+public:
+    CZCPaymentAddress() {}
+
+    CZCPaymentAddress(const std::string& strAddress) { SetString(strAddress.c_str()); }
+    CZCPaymentAddress(const libzcash::PaymentAddress& addr) { Set(addr); }
+};
+
+class CZCViewingKey : public CZCEncoding<libzcash::ViewingKey, CChainParams::ZCVIEWING_KEY, libzcash::SerializedViewingKeySize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "viewing key" + s; }
+
+public:
+    CZCViewingKey() {}
+
+    CZCViewingKey(const std::string& strViewingKey) { SetString(strViewingKey.c_str()); }
+    CZCViewingKey(const libzcash::ViewingKey& vk) { Set(vk); }
+};
+
+class CZCSpendingKey : public CZCEncoding<libzcash::SpendingKey, CChainParams::ZCSPENDING_KEY, libzcash::SerializedSpendingKeySize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "spending key" + s; }
+
+public:
+    CZCSpendingKey() {}
+
+    CZCSpendingKey(const std::string& strAddress) { SetString(strAddress.c_str()); }
+    CZCSpendingKey(const libzcash::SpendingKey& addr) { Set(addr); }
 };
 
 /** base58-encoded Bitcoin addresses.
