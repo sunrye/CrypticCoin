@@ -373,6 +373,9 @@ public:
         SCRIPT_ADDRESS = 33, 
         PUBKEY_ADDRESS_TEST = 115,
         SCRIPT_ADDRESS_TEST = 198,
+        ZCPAYMENT_ADDRRESS = 5786,
+        ZCVIEWING_KEY = 11054035,
+        ZCSPENDING_KEY = 43830,
     };
 
     bool Set(const CKeyID &id) {
