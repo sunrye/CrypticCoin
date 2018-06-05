@@ -253,98 +253,6 @@ public:
     bool operator> (const CBase58Data& b58) const { return CompareTo(b58) >  0; }
 };
 
-/**
- * CChainParams defines various tweakable parameters of a given instance of the
- * Bitcoin system. There are three: the main network on which people trade goods
- * and services, the public test network which gets reset from time to time and
- * a regression test mode which is intended for private networks only. It has
- * minimal difficulty to ensure that blocks can be found instantly.
- */
-class CChainParams
-{
-public:
-    enum Base58Type {
-        PUBKEY_ADDRESS,
-        SCRIPT_ADDRESS,
-        SECRET_KEY,
-        EXT_PUBLIC_KEY,
-        EXT_SECRET_KEY,
-
-        ZCPAYMENT_ADDRRESS,
-        ZCSPENDING_KEY,
-        ZCVIEWING_KEY,
-
-        MAX_BASE58_TYPES
-    };
-
-    CChainParams () {
-        // guarantees the first 2 characters, when base58 encoded, are "t1"
-        base58Prefixes[PUBKEY_ADDRESS]     = {0x1C,0xB8};
-        // guarantees the first 2 characters, when base58 encoded, are "t3"
-        base58Prefixes[SCRIPT_ADDRESS]     = {0x1C,0xBD};
-        // the first character, when base58 encoded, is "5" or "K" or "L" (as in Bitcoin)
-        base58Prefixes[SECRET_KEY]         = {0x80};
-        // do not rely on these BIP32 prefixes; they are not specified and may change
-        base58Prefixes[EXT_PUBLIC_KEY]     = {0x04,0x88,0xB2,0x1E};
-        base58Prefixes[EXT_SECRET_KEY]     = {0x04,0x88,0xAD,0xE4};
-        // guarantees the first 2 characters, when base58 encoded, are "zc"
-        base58Prefixes[ZCPAYMENT_ADDRRESS] = {0x16,0x9A};
-        // guarantees the first 4 characters, when base58 encoded, are "ZiVK"
-        base58Prefixes[ZCVIEWING_KEY]      = {0xA8,0xAB,0xD3};
-        // guarantees the first 2 characters, when base58 encoded, are "SK"
-        base58Prefixes[ZCSPENDING_KEY]     = {0xAB,0x36};
-    }
-
-    const std::vector<unsigned char>& Base58Prefix(Base58Type type) const { return base58Prefixes[type]; }
-    
-protected:
-    std::vector<unsigned char> base58Prefixes[MAX_BASE58_TYPES];
-};
-
-template<class DATA_TYPE, CChainParams::Base58Type PREFIX, size_t SER_SIZE>
-class CZCEncoding : public CBase58Data {
-protected:
-    virtual std::string PrependName(const std::string& s) const = 0;
-
-public:
-    bool Set(const DATA_TYPE& addr);
-
-    DATA_TYPE Get() const;
-};
-
-class CZCPaymentAddress : public CZCEncoding<libzcash::PaymentAddress, CChainParams::ZCPAYMENT_ADDRRESS, libzcash::SerializedPaymentAddressSize> {
-protected:
-    std::string PrependName(const std::string& s) const { return "payment address" + s; }
-
-public:
-    CZCPaymentAddress() {}
-
-    CZCPaymentAddress(const std::string& strAddress) { SetString(strAddress.c_str()); }
-    CZCPaymentAddress(const libzcash::PaymentAddress& addr) { Set(addr); }
-};
-
-class CZCViewingKey : public CZCEncoding<libzcash::ViewingKey, CChainParams::ZCVIEWING_KEY, libzcash::SerializedViewingKeySize> {
-protected:
-    std::string PrependName(const std::string& s) const { return "viewing key" + s; }
-
-public:
-    CZCViewingKey() {}
-
-    CZCViewingKey(const std::string& strViewingKey) { SetString(strViewingKey.c_str()); }
-    CZCViewingKey(const libzcash::ViewingKey& vk) { Set(vk); }
-};
-
-class CZCSpendingKey : public CZCEncoding<libzcash::SpendingKey, CChainParams::ZCSPENDING_KEY, libzcash::SerializedSpendingKeySize> {
-protected:
-    std::string PrependName(const std::string& s) const { return "spending key" + s; }
-
-public:
-    CZCSpendingKey() {}
-
-    CZCSpendingKey(const std::string& strAddress) { SetString(strAddress.c_str()); }
-    CZCSpendingKey(const libzcash::SpendingKey& addr) { Set(addr); }
-};
-
 /** base58-encoded Bitcoin addresses.
  * Public-key-hash-addresses have version 0 (or 111 testnet).
  * The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.
@@ -367,7 +275,7 @@ public:
 class CBitcoinAddress : public CBase58Data
 {
 public:
-    enum
+    enum Base58Type
     {
         PUBKEY_ADDRESS = 30,  // CrypticCoin: address begin with 'f'
         SCRIPT_ADDRESS = 33, 
@@ -375,7 +283,7 @@ public:
         SCRIPT_ADDRESS_TEST = 198,
         ZCPAYMENT_ADDRRESS = 5786,
         ZCVIEWING_KEY = 11054035,
-        ZCSPENDING_KEY = 43830,
+        ZCSPENDING_KEY = 43830
     };
 
     bool Set(const CKeyID &id) {
@@ -494,6 +402,50 @@ bool inline CBitcoinAddressVisitor::operator()(const CKeyID &id) const         {
 bool inline CBitcoinAddressVisitor::operator()(const CScriptID &id) const      { return addr->Set(id); }
 bool inline CBitcoinAddressVisitor::operator()(const CNoDestination &id) const { return false; }
 bool inline CBitcoinAddressVisitor::operator()(const CStealthAddress &stxAddr) const { return false; }
+
+template<class DATA_TYPE, CBitcoinAddress::Base58Type PREFIX, size_t SER_SIZE>
+class CZCEncoding : public CBase58Data {
+protected:
+    virtual std::string PrependName(const std::string& s) const = 0;
+
+public:
+    bool Set(const DATA_TYPE& addr);
+
+    DATA_TYPE Get() const;
+};
+
+class CZCPaymentAddress : public CZCEncoding<libzcash::PaymentAddress, CBitcoinAddress::ZCPAYMENT_ADDRRESS, libzcash::SerializedPaymentAddressSize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "payment address" + s; }
+
+public:
+    CZCPaymentAddress() {}
+
+    CZCPaymentAddress(const std::string& strAddress) { SetString(strAddress.c_str()); }
+    CZCPaymentAddress(const libzcash::PaymentAddress& addr) { Set(addr); }
+};
+
+class CZCViewingKey : public CZCEncoding<libzcash::ViewingKey, CBitcoinAddress::ZCVIEWING_KEY, libzcash::SerializedViewingKeySize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "viewing key" + s; }
+
+public:
+    CZCViewingKey() {}
+
+    CZCViewingKey(const std::string& strViewingKey) { SetString(strViewingKey.c_str()); }
+    CZCViewingKey(const libzcash::ViewingKey& vk) { Set(vk); }
+};
+
+class CZCSpendingKey : public CZCEncoding<libzcash::SpendingKey, CBitcoinAddress::ZCSPENDING_KEY, libzcash::SerializedSpendingKeySize> {
+protected:
+    std::string PrependName(const std::string& s) const { return "spending key" + s; }
+
+public:
+    CZCSpendingKey() {}
+
+    CZCSpendingKey(const std::string& strAddress) { SetString(strAddress.c_str()); }
+    CZCSpendingKey(const libzcash::SpendingKey& addr) { Set(addr); }
+};
 
 /** A base58-encoded secret key */
 class CBitcoinSecret : public CBase58Data
