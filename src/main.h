@@ -46,6 +46,11 @@ static const int64 HALF_HELMING_BLOCKS = 1048320; // Number of block which will 
 static const int64 LAST_BLOCK_WITH_REWARDS = 6361141;
 static const int DISABLE_POS_BLOCK = 1; // TODO: SS Is remove it?
 
+/** Time to wait (in seconds) between writing blocks/block index to disk. */
+static const unsigned int DATABASE_WRITE_INTERVAL = 60 * 60;
+/** Time to wait (in seconds) between flushing chainstate to disk. */
+static const unsigned int DATABASE_FLUSH_INTERVAL = 24 * 60 * 60;
+
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
 static const unsigned int LOCKTIME_THRESHOLD = 500000000; // Tue Nov  5 00:53:20 1985 UTC
 

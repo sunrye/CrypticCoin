@@ -30,6 +30,7 @@ CCriticalSection cs_setpwalletRegistered;
 set<CWallet*> setpwalletRegistered;
 
 CCriticalSection cs_main;
+CCriticalSection cs_LastBlockFile;
 
 CTxMemPool mempool;
 unsigned int nTransactionsUpdated = 0;
@@ -60,6 +61,7 @@ CBigNum bnBestInvalidTrust = 0;
 uint256 hashBestChain = 0;
 CBlockIndex* pindexBest = NULL;
 int64 nTimeBestReceived = 0;
+size_t nCoinCacheUsage = 5000 * 300;
 
 CMedianFilter<int> cPeerBlockCounts(5, 0); // Amount of blocks that other nodes claim to have
 
@@ -87,6 +89,13 @@ int miningAlgo = ALGO_SCRYPT;
 
 // Settings
 int64 nTransactionFee = MIN_TX_FEE;
+
+enum FlushStateMode {
+    FLUSH_STATE_NONE,
+    FLUSH_STATE_IF_NEEDED,
+    FLUSH_STATE_PERIODIC,
+    FLUSH_STATE_ALWAYS
+};
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -4537,4 +4546,91 @@ void GenerateBitcoins(bool fGenerate, CWallet* pwallet)
             MilliSleep(10);
         }
     }
+}
+
+static inline size_t MallocUsage(size_t alloc)
+{
+    // Measured on libc6 2.19 on Linux.
+    if (sizeof(void*) == 8) {
+        return ((alloc + 31) >> 4) << 4;
+    } else if (sizeof(void*) == 4) {
+        return ((alloc + 15) >> 3) << 3;
+    } else {
+        assert(0);
+    }
+}
+
+// STL data structures
+
+template<typename X>
+struct stl_tree_node
+{
+private:
+    int color;
+    void* parent;
+    void* left;
+    void* right;
+    X x;
+};
+
+size_t DynamicMemoryUsage() {
+    return  MallocUsage(sizeof(stl_tree_node<std::pair<const uint256, CAnchorsCacheEntry>>)) * anchorsMap.size() +
+            MallocUsage(sizeof(stl_tree_node<std::pair<const uint256, CNullifiersCacheEntry>>)) * nullifiersMap.size();
+}
+
+/**
+ * Update the on-disk chain state.
+ * The caches and indexes are flushed depending on the mode we're called with
+ * if they're too large, if it's been a while since the last write,
+ * or always and in all cases if we're in prune mode and are deleting files.
+ */
+bool static FlushStateToDisk(FlushStateMode mode) {
+    LOCK2(cs_main, cs_LastBlockFile);
+    static int64_t nLastWrite = 0;
+    static int64_t nLastFlush = 0;
+    static int64_t nLastSetChain = 0;
+    try {
+        int64_t nNow = GetTimeMillis();
+        // Avoid writing/flushing immediately after startup.
+        if (nLastWrite == 0) {
+            nLastWrite = nNow;
+        }
+        if (nLastFlush == 0) {
+            nLastFlush = nNow;
+        }
+        if (nLastSetChain == 0) {
+            nLastSetChain = nNow;
+        }
+        size_t cacheSize = DynamicMemoryUsage();
+        // The cache is large and close to the limit, but we have time now (not in the middle of a block processing).
+        bool fCacheLarge = mode == FLUSH_STATE_PERIODIC && cacheSize * (10.0/9) > nCoinCacheUsage;
+        // The cache is over the limit, we have to write now.
+        bool fCacheCritical = mode == FLUSH_STATE_IF_NEEDED && cacheSize > nCoinCacheUsage;
+        // It's been very long since we flushed the cache. Do this infrequently, to optimize cache usage.
+        bool fPeriodicFlush = mode == FLUSH_STATE_PERIODIC && nNow > nLastFlush + (int64_t)DATABASE_FLUSH_INTERVAL * 1000;
+        // Combine all conditions that result in a full cache flush.
+        bool fDoFullFlush = (mode == FLUSH_STATE_ALWAYS) || fCacheLarge || fCacheCritical || fPeriodicFlush;
+
+        // Flush best chain related state. This can only be done if the blocks / block index write was also done.
+        if (fDoFullFlush) {
+            // Flush the chainstate (which may refer to block index entries).
+            CTxDB txdb("r");
+            if (!txdb.Flush())
+                return error("Failed to write to coin database");
+            nLastFlush = nNow;
+        }
+
+        if ((mode == FLUSH_STATE_ALWAYS || mode == FLUSH_STATE_PERIODIC) && nNow > nLastSetChain + (int64_t)DATABASE_WRITE_INTERVAL * 1000) {
+            // Update best block in wallet (so we can detect restored wallets).
+           // GetMainSignals().SetBestChain(chainActive.GetLocator()); // TODO: SS wallet update data
+            nLastSetChain = nNow;
+        }
+    } catch (const std::runtime_error& e) {
+        throw runtime_error(std::string("System error while flushing: ") + e.what());
+    }
+    return true;
+}
+
+void FlushStateToDisk() {
+    FlushStateToDisk(FLUSH_STATE_ALWAYS);
 }

@@ -320,6 +320,13 @@ bool CTxDB::ReadNullifier(const uint256 &nf)
     return read;
 }
 
+uint256 CTxDB::GetBestAnchor(){
+    uint256 hashBestAnchor;
+    if (!Read(string("bestAnchor"), hashBestAnchor))
+        return ZCIncrementalMerkleTree::empty_root();
+    return hashBestAnchor;
+}
+
 static CBlockIndex *InsertBlockIndex(uint256 hash)
 {
     if (hash == 0)
