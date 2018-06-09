@@ -22,7 +22,7 @@ const uint32_t SPROUT_BRANCH_ID = NetworkUpgradeInfo[Consensus::BASE_SPROUT].nBr
 
 bool NetworkUpgradeActive(int nHeight, const Consensus::Params& params, Consensus::UpgradeIndex idx)
 {
-    return true;
+    return false;
 }
 
 int CurrentEpoch(int nHeight, const Consensus::Params& params) {
