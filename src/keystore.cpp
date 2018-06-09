@@ -221,3 +221,124 @@ bool CCryptoKeyStore::EncryptKeys(CKeyingMaterial& vMasterKeyIn)
     }
     return true;
 }
+
+bool CCryptoKeyStore::AddSpendingKey(const libzcash::SpendingKey &sk)
+{
+    // {
+    //     LOCK(cs_SpendingKeyStore);
+    //     if (!IsCrypted())
+    //         return CBasicKeyStore::AddSpendingKey(sk);
+
+    //     if (IsLocked())
+    //         return false;
+
+    //     std::vector<unsigned char> vchCryptedSecret;
+    //     CSecureDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+    //     ss << sk;
+    //     CKeyingMaterial vchSecret(ss.begin(), ss.end());
+    //     auto address = sk.address();
+    //     if (!EncryptSecret(vMasterKey, vchSecret, address.GetHash(), vchCryptedSecret))
+    //         return false;
+
+    //     if (!AddCryptedSpendingKey(address, sk.receiving_key(), vchCryptedSecret))
+    //         return false;
+    // }
+    return true;
+}
+
+bool CCryptoKeyStore::AddCryptedSpendingKey(const libzcash::PaymentAddress &address,
+                                            const libzcash::ReceivingKey &rk,
+                                            const std::vector<unsigned char> &vchCryptedSecret)
+{
+    {
+        LOCK(cs_SpendingKeyStore);
+        if (!SetCrypted())
+            return false;
+
+        mapCryptedSpendingKeys[address] = vchCryptedSecret;
+        mapNoteDecryptors.insert(std::make_pair(address, ZCNoteDecryption(rk)));
+    }
+    return true;
+}
+
+bool CCryptoKeyStore::GetSpendingKey(const libzcash::PaymentAddress &address, libzcash::SpendingKey &skOut) const
+{
+    {
+        LOCK(cs_SpendingKeyStore);
+        if (!IsCrypted())
+            return CBasicKeyStore::GetSpendingKey(address, skOut);
+
+        CryptedSpendingKeyMap::const_iterator mi = mapCryptedSpendingKeys.find(address);
+        if (mi != mapCryptedSpendingKeys.end())
+        {
+            const std::vector<unsigned char> &vchCryptedSecret = (*mi).second;
+
+            CKeyingMaterial vchSecret;
+            if(!DecryptSecret(vMasterKey, vchCryptedSecret, address.GetHash(), vchSecret))
+                return false;
+
+            if (vchSecret.size() != libzcash::SerializedSpendingKeySize)
+                return false;
+
+            // CKey key;
+            // key.SetPubKey(vchPubKey);
+            // key.SetSecret(vchSecret);
+            // if (key.GetPubKey() == vchPubKey)
+            // {
+            //     vMasterKey = vMasterKeyIn;
+            //     NotifyStatusChanged(this);
+            //     return true;
+            // }
+
+            // CSecureDataStream ss(vchSecret, SER_NETWORK, PROTOCOL_VERSION);
+            // ss >> sk;
+            // return sk.address() == address;
+
+            //return DecryptSpendingKey(vMasterKey, vchCryptedSecret, address, skOut);
+        }
+    }
+    return false;
+}
+
+bool CBasicKeyStore::AddSpendingKey(const libzcash::SpendingKey &sk)
+{
+    LOCK(cs_SpendingKeyStore);
+    auto address = sk.address();
+    mapSpendingKeys[address] = sk;
+    mapNoteDecryptors.insert(std::make_pair(address, ZCNoteDecryption(sk.receiving_key())));
+    return true;
+}
+
+bool CBasicKeyStore::AddViewingKey(const libzcash::ViewingKey &vk)
+{
+    LOCK(cs_SpendingKeyStore);
+    auto address = vk.address();
+    mapViewingKeys[address] = vk;
+    mapNoteDecryptors.insert(std::make_pair(address, ZCNoteDecryption(vk.sk_enc)));
+    return true;
+}
+
+bool CBasicKeyStore::RemoveViewingKey(const libzcash::ViewingKey &vk)
+{
+    LOCK(cs_SpendingKeyStore);
+    mapViewingKeys.erase(vk.address());
+    return true;
+}
+
+bool CBasicKeyStore::HaveViewingKey(const libzcash::PaymentAddress &address) const
+{
+    LOCK(cs_SpendingKeyStore);
+    return mapViewingKeys.count(address) > 0;
+}
+
+bool CBasicKeyStore::GetViewingKey(const libzcash::PaymentAddress &address,
+                                   libzcash::ViewingKey &vkOut) const
+{
+    LOCK(cs_SpendingKeyStore);
+    ViewingKeyMap::const_iterator mi = mapViewingKeys.find(address);
+    if (mi != mapViewingKeys.end()) {
+        vkOut = mi->second;
+        return true;
+    }
+    return false;
+}

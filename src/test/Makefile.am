@@ -20,7 +20,7 @@ JSON_TEST_FILES = \
 BUILT_SOURCES = $(JSON_TEST_FILES:.json=.json.h) $(RAW_TEST_FILES:.raw=.raw.h)
 
 # test_bitcoin binary #
-test_bitcoin_CPPFLAGS = $(AM_CPPFLAGS) $(TESTDEFS)
+test_bitcoin_CPPFLAGS = -O0 -g $(AM_CPPFLAGS) $(TESTDEFS)
 test_bitcoin_LDADD = $(LIBBITCOIN_SERVER) $(LIBBITCOIN_COMMON) \
   $(BOOST_LIBS) $(BOOST_UNIT_TEST_FRAMEWORK_LIB)
 if ENABLE_WALLET

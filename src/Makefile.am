@@ -175,7 +175,7 @@ obj/build.h: FORCE
 libbitcoin_util_a-version.$(OBJEXT): obj/build.h
 
 # server: shared between CrypticCoind and CrypticCoin-qt
-libbitcoin_server_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+libbitcoin_server_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
   alert.cpp \
@@ -200,7 +200,7 @@ libbitcoin_server_a_SOURCES = \
 
 # wallet: shared between CrypticCoind and CrypticCoin-qt, but only linked
 # when wallet enabled
-libbitcoin_wallet_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+libbitcoin_wallet_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_SOURCES = \
   crypter.cpp \
   rpcdump.cpp \
@@ -213,7 +213,7 @@ libbitcoin_wallet_a_SOURCES = \
   $(LIBZCASH_H)
 
   # crypto primitives library
-crypto_libbitcoin_crypto_a_CPPFLAGS = $(BITCOIN_CONFIG_INCLUDES)
+crypto_libbitcoin_crypto_a_CPPFLAGS = -O0 -g $(BITCOIN_CONFIG_INCLUDES)
 #crypto_libbitcoin_crypto_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/common.h \
@@ -221,7 +221,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha256.h
 
 # common: shared between CrypticCoind, and CrypticCoin-qt and non-server tools
-libbitcoin_common_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+libbitcoin_common_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 #libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
   key.cpp \
@@ -266,7 +266,7 @@ libbitcoin_common_a_SOURCES = \
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc
 # backward-compatibility objects and their sanity checks are linked.
-libbitcoin_util_a_CPPFLAGS = $(BITCOIN_INCLUDES)
+libbitcoin_util_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 libbitcoin_util_a_SOURCES = \
   util.cpp \
   version.cpp \
@@ -322,7 +322,7 @@ CrypticCoind_LDADD += \
   $(LIBZCASH_LIBS)
 
 CrypticCoind_LDADD += $(BOOST_LIBS) $(BDB_LIBS) $(LIBEVENT_LDFLAGS) $(LIBSECCOMP_LDFLAGS) $(LIBCAP_LDFLAGS) $(ZLIB_LDFLAGS)
-CrypticCoind_CPPFLAGS = $(BITCOIN_INCLUDES) $(LIBEVENT_CFLAGS) $(LIBSECCOMP_CFLAGS) $(LIBCAP_CFLAGS) $(ZLIB_CFLAGS)
+CrypticCoind_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES) $(LIBEVENT_CFLAGS) $(LIBSECCOMP_CFLAGS) $(LIBCAP_CFLAGS) $(ZLIB_CFLAGS)
 CrypticCoind_LDFLAGS = $(RELDFLAGS) $(AM_LDFLAGS) $(LIBTOOL_APP_LDFLAGS)
 
 # zcash protocol primitives #
@@ -342,7 +342,7 @@ libzcash_a_SOURCES = \
   zcash/circuit/prfs.tcc \
   zcash/circuit/utils.tcc
 
-libzcash_a_CPPFLAGS = -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O1 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
+libzcash_a_CPPFLAGS = -fPIC -DBINARY_OUTPUT -DCURVE_ALT_BN128 -DBOOST_SPIRIT_THREADSAFE -DHAVE_BUILD_INFO -D__STDC_FORMAT_MACROS $(HARDENED_CPPFLAGS) $(HARDENED_CXXFLAGS) $(HARDENED_LDFLAGS) -pipe $(SAN_LDFLAGS) -O0 -g -Wstack-protector $(SAN_CXXFLAGS) -fstack-protector-all -fPIE -fvisibility=hidden -DSTATIC $(BITCOIN_INCLUDES)
 
 libzcash_a_CXXFLAGS = $(SAN_CXXFLAGS) $(HARDENED_CXXFLAGS) -fwrapv -fno-strict-aliasing
 
