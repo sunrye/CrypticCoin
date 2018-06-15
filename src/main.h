@@ -143,6 +143,9 @@ const CBlockIndex* GetLastBlockIndex(const CBlockIndex* pindex, bool fProofOfSta
 void CrypticCoinMiner(CWallet *pwallet, bool fProofOfStake);
 void ResendWalletTransactions();
 bool IsStandardTx(const CTransaction& tx);
+bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime);
+bool IsExpiredTx(const CTransaction &tx, int nBlockHeight);
+bool CheckFinalTx(const CTransaction &tx, int flags = -1);
 
 enum
 {

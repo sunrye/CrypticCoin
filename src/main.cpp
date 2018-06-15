@@ -340,7 +340,57 @@ bool IsStandardTx(const CTransaction& tx)
     return true;
 }
 
+bool IsFinalTx(const CTransaction &tx, int nBlockHeight, int64_t nBlockTime)
+{
+    if (tx.nLockTime == 0)
+        return true;
+    if ((int64_t)tx.nLockTime < ((int64_t)tx.nLockTime < LOCKTIME_THRESHOLD ? (int64_t)nBlockHeight : nBlockTime))
+        return true;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+        if (!txin.IsFinal())
+            return false;
+    return true;
+}
 
+bool IsExpiredTx(const CTransaction &tx, int nBlockHeight)
+{
+    if (tx.nExpiryHeight == 0 || tx.IsCoinBase()) {
+        return false;
+    }
+    return static_cast<uint32_t>(nBlockHeight) > tx.nExpiryHeight;
+}
+
+bool CheckFinalTx(const CTransaction &tx, int flags)
+{
+    // 
+    // AssertLockHeld(cs_main);
+
+    // By convention a negative value for flags indicates that the
+    // current network-enforced consensus rules should be used. In
+    // a future soft-fork scenario that would mean checking which
+    // rules would be enforced for the next block and setting the
+    // appropriate flags. At the present time no soft-forks are
+    // scheduled, so no flags are set.
+    flags = std::max(flags, 0);
+
+    // CheckFinalTx() uses chainActive.Height()+1 to evaluate
+    // nLockTime because when IsFinalTx() is called within
+    // CBlock::AcceptBlock(), the height of the block *being*
+    // evaluated is what is used. Thus if we want to know if a
+    // transaction can be part of the *next* block, we need to call
+    // IsFinalTx() with one more than chainActive.Height().
+    const int nBlockHeight = nBestHeight + 1;
+
+    // Timestamps on the other hand don't get any special treatment,
+    // because we can't know what timestamp the next block will have,
+    // and there aren't timestamp applications where it matters.
+    // However this changes once median past time-locks are enforced:
+    const int64_t nBlockTime = (flags & LOCKTIME_MEDIAN_TIME_PAST)
+                             ? pindexBest->GetMedianTimePast()
+                             : GetAdjustedTime();
+
+    return IsFinalTx(tx, nBlockHeight, nBlockTime);
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
