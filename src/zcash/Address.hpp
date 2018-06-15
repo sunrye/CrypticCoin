@@ -22,10 +22,10 @@ public:
     PaymentAddress(uint256 a_pk, uint256 pk_enc) : a_pk(a_pk), pk_enc(pk_enc) { }
 
     IMPLEMENT_SERIALIZE
-        (
-         READWRITE(a_pk);
-         READWRITE(pk_enc);
-        )
+    (
+        READWRITE(a_pk);
+        READWRITE(pk_enc);
+    )
 
     //! Get the 256-bit SHA256d hash of this payment address.
     uint256 GetHash() const;
