@@ -2396,7 +2396,7 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
            printf("block.nTime = %u \n", block.nTime);
            printf("block.nNonce = %u \n", block.nNonce);
-           assert(block.hashMerkleRoot == uint256("0xf24d16485444c179222420e0286506b9ad1d357f1ffb329f0621737eea79d39d"));
+           assert(block.hashMerkleRoot == uint256("0xe4576adfe62a55b5771e97835881f77866e79776bb3fe6fd2dcbeaa84c4bb42d"));
            block.print();
         }
         else
@@ -2405,7 +2405,7 @@ bool LoadBlockIndex(bool fAllowNew, CClientUIInterface* uiInterface)
            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
            printf("block.nTime = %u \n", block.nTime);
            printf("block.nNonce = %u \n", block.nNonce);
-           assert(block.hashMerkleRoot == uint256("0xf24d16485444c179222420e0286506b9ad1d357f1ffb329f0621737eea79d39d"));
+           assert(block.hashMerkleRoot == uint256("0xe4576adfe62a55b5771e97835881f77866e79776bb3fe6fd2dcbeaa84c4bb42d"));
            //=====
            // If genesis block hash does not match, then generate new genesis hash.
            if (block.GetHash() != hashGenesisBlock)
