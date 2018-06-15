@@ -1661,6 +1661,78 @@ Value validateaddress(const Array& params, bool fHelp)
 //     return ret;
 // }
 
+bool EnsureWalletIsAvailable(bool avoidException)
+{
+    if (!pwalletMain)
+    {
+        if (!avoidException)
+            throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+        else
+            return false;
+    }
+    return true;
+}
+
+Value z_listreceivedbyaddress(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size()==0 || params.size() >2)
+        throw runtime_error(
+            "z_listreceivedbyaddress \"address\" ( minconf )\n"
+            "\nReturn a list of amounts received by a zaddr belonging to the node’s wallet.\n"
+            "\nArguments:\n"
+            "1. \"address\"      (string) The private address.\n"
+            "2. minconf          (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"txid\": xxxxx,     (string) the transaction id\n"
+            "  \"amount\": xxxxx,   (numeric) the amount of value in the note\n"
+            "  \"memo\": xxxxx,     (string) hexademical string representation of memo field\n"
+            "}\n");
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    int nMinDepth = 1;
+    if (params.size() > 1) {
+        nMinDepth = params[1].get_int();
+    }
+    if (nMinDepth < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Minimum number of confirmations cannot be less than 0");
+    }
+
+    // Check that the from address is valid.
+    auto fromaddress = params[0].get_str();
+
+    libzcash::PaymentAddress zaddr;
+    CZCPaymentAddress address(fromaddress);
+    try {
+        zaddr = address.Get();
+    } catch (const std::runtime_error&) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid zaddr.");
+    }
+
+    if (!(pwalletMain->HaveSpendingKey(zaddr) || pwalletMain->HaveViewingKey(zaddr))) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "From address does not belong to this node, zaddr spending key or viewing key not found.");
+    }
+
+    Array result;
+    std::vector<CNotePlaintextEntry> entries;
+    pwalletMain->GetFilteredNotes(entries, fromaddress, nMinDepth, false, false);
+    for (CNotePlaintextEntry & entry : entries) {
+        Object obj;
+        obj.push_back(Pair("txid",entry.jsop.hash.ToString()));
+        obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.plaintext.value))));
+        std::string data(entry.plaintext.memo.begin(), entry.plaintext.memo.end());
+        obj.push_back(Pair("memo", HexStr(data.begin(), data.end())));
+        // (txid, jsindex, jsoutindex) is needed to globally identify a note
+        obj.push_back(Pair("jsindex", entry.jsop.js));
+        obj.push_back(Pair("jsoutindex", entry.jsop.n));
+        result.push_back(obj);
+    }
+    return result;
+}
+
 Value validatepubkey(const Array& params, bool fHelp)
 {
     if (fHelp || !params.size() || params.size() > 2)

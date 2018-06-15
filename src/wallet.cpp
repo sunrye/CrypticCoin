@@ -11,6 +11,7 @@
 #include "base58.h"
 #include "kernel.h"
 #include "smessage.h"
+#include "zcash/Note.hpp"
 #include <boost/algorithm/string.hpp>
 
 using namespace std;
@@ -21,6 +22,11 @@ extern bool fHeadless;
 //
 // mapWallet
 //
+
+std::string JSOutPoint::ToString() const
+{
+    return strprintf("JSOutPoint(%s, %d, %d)", hash.ToString().substr(0,10), js, n);
+}
 
 struct CompareValueOnly
 {
@@ -2975,4 +2981,128 @@ void CWallet::UpdatedTransaction(const uint256 &hashTx)
         if (mi != mapWallet.end())
             NotifyTransactionChanged(this, hashTx, CT_UPDATED);
     }
+}
+
+/**
+ * Find notes in the wallet filtered by payment address, min depth and ability to spend.
+ * These notes are decrypted and added to the output parameter vector, outEntries.
+ */
+void CWallet::GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth, bool ignoreSpent, bool ignoreUnspendable)
+{
+    std::set<libzcash::PaymentAddress> filterAddresses;
+
+    if (address.length() > 0) {
+        filterAddresses.insert(CZCPaymentAddress(address).Get());
+    }
+
+    GetFilteredNotes(outEntries, filterAddresses, minDepth, ignoreSpent, ignoreUnspendable);
+}
+
+/**
+ * Find notes in the wallet filtered by payment addresses, min depth and ability to spend.
+ * These notes are decrypted and added to the output parameter vector, outEntries.
+ */
+void CWallet::GetFilteredNotes(
+    std::vector<CNotePlaintextEntry>& outEntries,
+    std::set<libzcash::PaymentAddress>& filterAddresses,
+    int minDepth,
+    bool ignoreSpent,
+    bool ignoreUnspendable)
+{
+    LOCK2(cs_main, cs_wallet);
+
+    for (auto & p : mapWallet) {
+        CWalletTx wtx = p.second;
+
+        // Filter the transactions before checking for notes
+        if (!CheckFinalTx(wtx) || wtx.GetBlocksToMaturity() > 0 || wtx.GetDepthInMainChain() < minDepth) {
+            continue;
+        }
+
+        if (wtx.mapNoteData.size() == 0) {
+            continue;
+        }
+
+        for (auto & pair : wtx.mapNoteData) {
+            JSOutPoint jsop = pair.first;
+            CNoteData nd = pair.second;
+            libzcash::PaymentAddress pa = nd.address;
+
+            // skip notes which belong to a different payment address in the wallet
+            if (!(filterAddresses.empty() || filterAddresses.count(pa))) {
+                continue;
+            }
+
+            // skip note which has been spent
+            if (ignoreSpent && nd.nullifier && IsSpent(*nd.nullifier)) {
+                continue;
+            }
+
+            // skip notes which cannot be spent
+            if (ignoreUnspendable && !HaveSpendingKey(pa)) {
+                continue;
+            }
+            
+            // skip locked notes
+            if (IsLockedNote(jsop.hash, jsop.js, jsop.n)) {
+                continue;
+            }
+
+            int i = jsop.js; // Index into CTransaction.vjoinsplit
+            int j = jsop.n; // Index into JSDescription.ciphertexts
+
+            // Get cached decryptor
+            ZCNoteDecryption decryptor;
+            if (!GetNoteDecryptor(pa, decryptor)) {
+                // Note decryptors are created when the wallet is loaded, so it should always exist
+                throw std::runtime_error(strprintf("Could not find note decryptor for payment address %s", CZCPaymentAddress(pa).ToString()));
+            }
+
+            // determine amount of funds in the note
+            auto hSig = wtx.vjoinsplit[i].h_sig(*pzcashParams, wtx.joinSplitPubKey);
+            try {
+                libzcash::NotePlaintext plaintext = libzcash::NotePlaintext::decrypt(
+                        decryptor,
+                        wtx.vjoinsplit[i].ciphertexts[j],
+                        wtx.vjoinsplit[i].ephemeralKey,
+                        hSig,
+                        (unsigned char) j);
+
+                outEntries.push_back(CNotePlaintextEntry{jsop, pa, plaintext});
+
+            } catch (const libzcash::note_decryption_failed &err) {
+                // Couldn't decrypt with this spending key
+                throw std::runtime_error(strprintf("Could not decrypt note for payment address %s", CZCPaymentAddress(pa).ToString()));
+            } catch (const std::exception &exc) {
+                // Unexpected failure
+                throw std::runtime_error(strprintf("Error while decrypting note for payment address %s: %s", CZCPaymentAddress(pa).ToString(), exc.what()));
+            }
+        }
+    }
+}
+
+/**
+ * Note is spent if any non-conflicted transaction
+ * spends it:
+ */
+bool CWallet::IsSpent(const uint256& nullifier) const
+{
+    pair<TxNullifiers::const_iterator, TxNullifiers::const_iterator> range;
+    range = mapTxNullifiers.equal_range(nullifier);
+
+    for (TxNullifiers::const_iterator it = range.first; it != range.second; ++it) {
+        const uint256& wtxid = it->second;
+        std::map<uint256, CWalletTx>::const_iterator mit = mapWallet.find(wtxid);
+        if (mit != mapWallet.end() && mit->second.GetDepthInMainChain() >= 0) {
+            return true; // Spent
+        }
+    }
+    return false;
+}
+
+bool CWallet::IsLockedNote(uint256 hash, size_t js, uint8_t n) const
+{
+    JSOutPoint outpt(hash, js, n);
+
+    return (setLockedNotes.count(outpt) > 0);
 }

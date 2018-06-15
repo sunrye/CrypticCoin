@@ -28,6 +28,7 @@ class CAccountingEntry;
 class CWalletTx;
 class CReserveKey;
 class COutput;
+class JSOutPoint;
 
 typedef std::map<CKeyID, CStealthKeyMetadata> StealthKeyMetaMap;
 typedef std::map<std::string, std::string> mapValue_t;
@@ -71,6 +72,135 @@ public:
     )
 };
 
+/** A note outpoint */
+class JSOutPoint
+{
+public:
+    // Transaction hash
+    uint256 hash;
+    // Index into CTransaction.vjoinsplit
+    uint64_t js;
+    // Index into JSDescription fields of length ZC_NUM_JS_OUTPUTS
+    uint8_t n;
+
+    JSOutPoint() { SetNull(); }
+    JSOutPoint(uint256 h, size_t js, uint8_t n) : hash {h}, js {js}, n {n} { }
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(hash);
+        READWRITE(js);
+        READWRITE(n);
+    )
+
+    void SetNull() { hash.SetNull(); }
+    bool IsNull() const { return hash.IsNull(); }
+
+    friend bool operator<(const JSOutPoint& a, const JSOutPoint& b) 
+    {
+        return (a.hash < b.hash ||
+                (a.hash == b.hash && a.js < b.js) ||
+                (a.hash == b.hash && a.js == b.js && a.n < b.n));
+    }
+
+    friend bool operator==(const JSOutPoint& a, const JSOutPoint& b) 
+    {
+        return (a.hash == b.hash && a.js == b.js && a.n == b.n);
+    }
+
+    friend bool operator!=(const JSOutPoint& a, const JSOutPoint& b) 
+    {
+        return !(a == b);
+    }
+
+    std::string ToString() const;
+};
+
+class CNoteData
+{
+public:
+    libzcash::PaymentAddress address;
+
+    /**
+     * Cached note nullifier. May not be set if the wallet was not unlocked when
+     * this was CNoteData was created. If not set, we always assume that the
+     * note has not been spent.
+     *
+     * It's okay to cache the nullifier in the wallet, because we are storing
+     * the spending key there too, which could be used to derive this.
+     * If the wallet is encrypted, this means that someone with access to the
+     * locked wallet cannot spend notes, but can connect received notes to the
+     * transactions they are spent in. This is the same security semantics as
+     * for transparent addresses.
+     */
+    boost::optional<uint256> nullifier;
+
+    /**
+     * Cached incremental witnesses for spendable Notes.
+     * Beginning of the list is the most recent witness.
+     */
+    std::list<ZCIncrementalWitness> witnesses;
+
+    /**
+     * Block height corresponding to the most current witness.
+     *
+     * When we first create a CNoteData in CWallet::FindMyNotes, this is set to
+     * -1 as a placeholder. The next time CWallet::ChainTip is called, we can
+     * determine what height the witness cache for this note is valid for (even
+     * if no witnesses were cached), and so can set the correct value in
+     * CWallet::IncrementNoteWitnesses and CWallet::DecrementNoteWitnesses.
+     */
+    int witnessHeight;
+
+    CNoteData() : address(), nullifier(), witnessHeight {-1} { }
+    CNoteData(libzcash::PaymentAddress a) :
+        address {a}, nullifier(), witnessHeight {-1} { }
+    CNoteData(libzcash::PaymentAddress a, uint256 n) :
+        address {a}, nullifier {n}, witnessHeight {-1} { }
+
+    IMPLEMENT_SERIALIZE
+    (
+        READWRITE(address);
+        READWRITE(nullifier);
+        READWRITE(witnesses);
+        READWRITE(witnessHeight);
+    )
+
+    friend bool operator<(const CNoteData& a, const CNoteData& b) 
+    {
+        return (a.address < b.address ||
+                (a.address == b.address && a.nullifier < b.nullifier));
+    }
+
+    friend bool operator==(const CNoteData& a, const CNoteData& b) 
+    {
+        return (a.address == b.address && a.nullifier == b.nullifier);
+    }
+
+    friend bool operator!=(const CNoteData& a, const CNoteData& b) 
+    {
+        return !(a == b);
+    }
+};
+
+typedef std::map<JSOutPoint, CNoteData> mapNoteData_t;
+
+/** Decrypted note and its location in a transaction. */
+struct CNotePlaintextEntry
+{
+    JSOutPoint jsop;
+    libzcash::PaymentAddress address;
+    libzcash::NotePlaintext plaintext;
+};
+
+/** Decrypted note, location in a transaction, and confirmation height. */
+struct CUnspentNotePlaintextEntry {
+    JSOutPoint jsop;
+    libzcash::PaymentAddress address;
+    libzcash::NotePlaintext plaintext;
+    int nHeight;
+};
+
 /** A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
@@ -86,6 +216,15 @@ private:
 
     // the maximum wallet format version: memory-only variable that specifies to what version this wallet may be upgraded
     int nWalletMaxVersion;
+
+    template <class T>
+    using TxSpendMap = std::multimap<T, uint256>;
+    /**
+     * Used to keep track of spent Notes, and
+     * detect and report conflicts (double-spends).
+     */
+    typedef TxSpendMap<uint256> TxNullifiers;
+    TxNullifiers mapTxNullifiers;
 
 public:
     mutable CCriticalSection cs_wallet;
@@ -130,6 +269,8 @@ public:
     std::map<CTxDestination, std::string> mapAddressBook;
 
     CPubKey vchDefaultKey;
+
+    std::set<JSOutPoint> setLockedNotes;
 
     // check whether we are allowed to upgrade (or already support) to the named feature
     bool CanSupportFeature(enum WalletFeature wf) { return nWalletMaxVersion >= wf; }
@@ -213,7 +354,7 @@ public:
     int64 GetOldestKeyPoolTime();
     void GetAllReserveKeys(std::set<CKeyID>& setAddress);
 
-    std::set< std::set<CTxDestination> > GetAddressGroupings();
+    std::set<std::set<CTxDestination>> GetAddressGroupings();
     std::map<CTxDestination, int64> GetAddressBalances();
 
     bool IsMine(const CTxIn& txin) const;
@@ -331,6 +472,24 @@ public:
      * @note called with lock cs_wallet held.
      */
     boost::signals2::signal<void (CWallet *wallet, const uint256 &hashTx, ChangeType status)> NotifyTransactionChanged;
+
+    /* Find notes filtered by payment address, min depth, ability to spend */
+    void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries,
+                          std::string address,
+                          int minDepth=1,
+                          bool ignoreSpent=true,
+                          bool ignoreUnspendable=true);
+
+    /* Find notes filtered by payment addresses, min depth, ability to spend */
+    void GetFilteredNotes(std::vector<CNotePlaintextEntry>& outEntries,
+                          std::set<libzcash::PaymentAddress>& filterAddresses,
+                          int minDepth=1,
+                          bool ignoreSpent=true,
+                          bool ignoreUnspendable=true);
+
+    bool IsSpent(const uint256& nullifier) const;
+
+    bool IsLockedNote(uint256 hash, size_t js, uint8_t n) const;
 };
 
 /** A key allocated from the key pool. */
@@ -380,7 +539,6 @@ static void WriteOrderPos(const int64& nOrderPos, mapValue_t& mapValue)
     mapValue["n"] = i64tostr(nOrderPos);
 }
 
-
 /** A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -392,6 +550,7 @@ private:
 public:
     std::vector<CMerkleTx> vtxPrev;
     mapValue_t mapValue;
+    mapNoteData_t mapNoteData;
     std::vector<std::pair<std::string, std::string> > vOrderForm;
     unsigned int fTimeReceivedIsTxTime;
     unsigned int nTimeReceived;  // time received by this node
