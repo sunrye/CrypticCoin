@@ -247,7 +247,7 @@ mkdir -p ~/.CrypticCoin
 if [ -e ~/.CrypticCoin/CrypticCoin.conf ]; then
     cp -a ~/.CrypticCoin/CrypticCoin.conf ~/.CrypticCoin/CrypticCoin.bak
 fi
-echo -e "rpcuser="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 26 ; echo '')"\n""rpcpassword="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 26 ; echo '')"\n""rpcport=23202""\n""port=23303""\n""daemon=1""\n""listen=1""\n""server=1""\n""addnode=jhbkhdxegbeb5zbn.onion"> ~/.CrypticCoin/CrypticCoin.conf
+echo -e "rpcuser="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 26 ; echo '')"\n""rpcpassword="$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 26 ; echo '')"\n""rpcport=23202""\n""port=23303""\n""daemon=1""\n""listen=1""\n""server=1""\n""addnode=m2jtqonyml7y6li3.onion"> ~/.CrypticCoin/CrypticCoin.conf
 
 # Create Icon on Desktop and in menu
 mkdir -p ~/Desktop/
