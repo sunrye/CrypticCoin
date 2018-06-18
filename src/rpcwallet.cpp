@@ -1802,6 +1802,58 @@ Value z_getbalance(const Array& params, bool fHelp)
     return ValueFromAmount(nBalance);
 }
 
+Value z_gettotalbalance(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 2)
+        throw runtime_error(
+            "z_gettotalbalance ( minconf includeWatchonly )\n"
+            "\nReturn the total value of funds stored in the node’s wallet.\n"
+            "\nCAUTION: If the wallet contains watch-only zaddrs, the returned private balance may be larger than the actual balance,"
+            "\nbecause spends cannot be detected with incoming viewing keys.\n"
+            "\nArguments:\n"
+            "1. minconf          (numeric, optional, default=1) Only include private and transparent transactions confirmed at least this many times.\n"
+            "2. includeWatchonly (bool, optional, default=false) Also include balance in watchonly addresses (see 'importaddress' and 'z_importviewingkey')\n"
+            "\nResult:\n"
+            "{\n"
+            "  \"transparent\": xxxxx,     (numeric) the total balance of transparent funds\n"
+            "  \"private\": xxxxx,         (numeric) the total balance of private funds\n"
+            "  \"total\": xxxxx,           (numeric) the total balance of both transparent and private funds\n"
+            "}\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    int nMinDepth = 1;
+    if (params.size() > 0) {
+        nMinDepth = params[0].get_int();
+    }
+    if (nMinDepth < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Minimum number of confirmations cannot be less than 0");
+    }
+
+    bool fIncludeWatchonly = false;
+    if (params.size() > 1) {
+        fIncludeWatchonly = params[1].get_bool();
+    }
+
+    // getbalance and "getbalance * 1 true" should return the same number
+    // but they don't because wtx.GetAmounts() does not handle tx where there are no outputs
+    // pwalletMain->GetBalance() does not accept min depth parameter
+    // so we use our own method to get balance of utxos.
+    CAmount nBalance = GetAccountBalance("", nMinDepth);
+    CAmount nPrivateBalance = getBalanceZaddr("", nMinDepth, !fIncludeWatchonly);
+    CAmount nTotalBalance = nBalance + nPrivateBalance;
+    Object result;
+    result.push_back(Pair("transparent", FormatMoney(nBalance)));
+    result.push_back(Pair("private", FormatMoney(nPrivateBalance)));
+    result.push_back(Pair("total", FormatMoney(nTotalBalance)));
+    return result;
+}
+
 Value validatepubkey(const Array& params, bool fHelp)
 {
     if (fHelp || !params.size() || params.size() > 2)
