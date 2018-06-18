@@ -5,9 +5,11 @@
 
 #include "base58.h"
 
+#include "hash.h"
+#include "uint256.h"
+
 template<class DATA_TYPE, CBitcoinAddress::Base58Type PREFIX, size_t SER_SIZE>
-bool CZCEncoding<DATA_TYPE, PREFIX, SER_SIZE>::Set(const DATA_TYPE& addr)
-{
+bool CZCEncoding<DATA_TYPE, PREFIX, SER_SIZE>::Set(const DATA_TYPE& addr) {
     CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
     ss << addr;
     std::vector<unsigned char> addrSerialized(ss.begin(), ss.end());
@@ -18,8 +20,7 @@ bool CZCEncoding<DATA_TYPE, PREFIX, SER_SIZE>::Set(const DATA_TYPE& addr)
 }
 
 template<class DATA_TYPE, CBitcoinAddress::Base58Type PREFIX, size_t SER_SIZE>
-DATA_TYPE CZCEncoding<DATA_TYPE, PREFIX, SER_SIZE>::Get() const
-{
+DATA_TYPE CZCEncoding<DATA_TYPE, PREFIX, SER_SIZE>::Get() const {
     if (vchData.size() != SER_SIZE) {
         throw std::runtime_error(
             PrependName(" is invalid")

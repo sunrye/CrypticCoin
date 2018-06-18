@@ -49,9 +49,9 @@ $(LIBSNARK): $(wildcard snark/src/*)
 
 noinst_LIBRARIES = \
   crypto/libbitcoin_crypto.a \
-  libbitcoin_server.a \
-  libbitcoin_common.a \
   libbitcoin_util.a \
+  libbitcoin_common.a \
+  libbitcoin_server.a \
   libzcash.a
 
 if ENABLE_WALLET
@@ -202,6 +202,7 @@ libbitcoin_server_a_SOURCES = \
 # when wallet enabled
 libbitcoin_wallet_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 libbitcoin_wallet_a_SOURCES = \
+	base58.cpp \
   crypter.cpp \
   rpcdump.cpp \
   rpcwallet.cpp \
@@ -224,6 +225,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
 libbitcoin_common_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 #libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
+  base58.cpp \
   key.cpp \
   netbase.cpp \
   protocol.cpp \
@@ -235,7 +237,6 @@ libbitcoin_common_a_SOURCES = \
   smessage.cpp \
   stealth.cpp \
   groestl.c \
-  base58.cpp \
   blake.c \
   blake2s-ref.c \
   bmw.c \
@@ -261,7 +262,8 @@ libbitcoin_common_a_SOURCES = \
   Sponge.c \
   sph_sha2big.c \
   xxhash/xxhash.c \
-  $(BITCOIN_CORE_H)
+  $(BITCOIN_CORE_H) \
+  $(LIBZCASH_H)
 
 # util: shared between all executables.
 # This library *must* be included to make sure that the glibc

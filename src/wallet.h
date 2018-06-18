@@ -10,6 +10,7 @@
 
 #include <stdlib.h>
 
+#include "base58.h"
 #include "coincontrol.h"
 #include "amount.h"
 #include "main.h"

@@ -260,8 +260,7 @@ public:
  * The data vector contains RIPEMD160(SHA256(cscript)), where cscript is the serialized redemption script.
  */
 class CBitcoinAddress;
-class CBitcoinAddressVisitor : public boost::static_visitor<bool>
-{
+class CBitcoinAddressVisitor : public boost::static_visitor<bool>{
 private:
     CBitcoinAddress *addr;
 public:
@@ -272,11 +271,9 @@ public:
     bool operator()(const CStealthAddress &stxAddr) const;
 };
 
-class CBitcoinAddress : public CBase58Data
-{
+class CBitcoinAddress : public CBase58Data {
 public:
-    enum Base58Type
-    {
+    enum Base58Type {
         PUBKEY_ADDRESS = 30,  // CrypticCoin: address begin with 'f'
         SCRIPT_ADDRESS = 33, 
         PUBKEY_ADDRESS_TEST = 115,
