@@ -1611,6 +1611,18 @@ Value validateaddress(const Array& params, bool fHelp)
     }
     return ret;
 }
+
+CAmount getBalanceZaddr(std::string address, int minDepth = 1, bool ignoreUnspendable=true) {
+    CAmount balance = 0;
+    std::vector<CNotePlaintextEntry> entries;
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    pwalletMain->GetFilteredNotes(entries, address, minDepth, true, ignoreUnspendable);
+    for (auto & entry : entries) {
+        balance += CAmount(entry.plaintext.value);
+    }
+    return balance;
+}
+
 // TODO
 // Value z_validateaddress(const Array& params, bool fHelp)
 // {
@@ -1731,6 +1743,63 @@ Value z_listreceivedbyaddress(const Array& params, bool fHelp) {
         result.push_back(obj);
     }
     return result;
+}
+
+Value z_getbalance(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size()==0 || params.size() >2)
+        throw runtime_error(
+            "z_getbalance \"address\" ( minconf )\n"
+            "\nReturns the balance of a taddr or zaddr belonging to the node’s wallet.\n"
+            "\nCAUTION: If address is a watch-only zaddr, the returned balance may be larger than the actual balance,"
+            "\nbecause spends cannot be detected with incoming viewing keys.\n"
+            "\nArguments:\n"
+            "1. \"address\"      (string) The selected address. It may be a transparent or private address.\n"
+            "2. minconf          (numeric, optional, default=1) Only include transactions confirmed at least this many times.\n"
+            "\nResult:\n"
+            "amount              (numeric) The total amount in CRYP received for this address.\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    int nMinDepth = 1;
+    if (params.size() > 1) {
+        nMinDepth = params[1].get_int();
+    }
+    if (nMinDepth < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Minimum number of confirmations cannot be less than 0");
+    }
+
+    // Check that the from address is valid.
+    auto fromaddress = params[0].get_str();
+    bool fromTaddr = false;
+    CBitcoinAddress taddr(fromaddress);
+    fromTaddr = taddr.IsValid();
+    libzcash::PaymentAddress zaddr;
+    if (!fromTaddr) {
+        CZCPaymentAddress address(fromaddress);
+        try {
+            zaddr = address.Get();
+        } catch (const std::runtime_error&) {
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid from address, should be a taddr or zaddr.");
+        }
+        if (!(pwalletMain->HaveSpendingKey(zaddr) || pwalletMain->HaveViewingKey(zaddr))) {
+             throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "From address does not belong to this node, zaddr spending key or viewing key not found.");
+        }
+    }
+
+    CAmount nBalance = 0;
+    if (fromTaddr) {
+        nBalance = GetAccountBalance(fromaddress, nMinDepth);
+    } else {
+        nBalance = getBalanceZaddr(fromaddress, nMinDepth, false);
+    }
+
+    return ValueFromAmount(nBalance);
 }
 
 Value validatepubkey(const Array& params, bool fHelp)
