@@ -88,6 +88,10 @@ BITCOIN_CORE_H = \
   addrman.h \
   alert.h \
   allocators.h \
+	asyncrpcoperation.h \
+  asyncrpcoperation_mergetoaddress.h \
+  asyncrpcoperation_sendmany.h \
+  asyncrpcoperation_shieldcoinbase.h \	
   base58.h \
   bloom.h \
   bignum.h \
@@ -207,6 +211,10 @@ libbitcoin_wallet_a_SOURCES = \
   rpcdump.cpp \
   rpcwallet.cpp \
   rpcsmessage.cpp \
+  asyncrpcoperation_mergetoaddress.cpp \
+  paymentdisclosure.cpp \
+  paymentdisclosuredb.cpp \
+  wallet/rpcdisclosure.cpp \	
   wallet.cpp \
   walletdb.cpp \
   stealth.cpp \

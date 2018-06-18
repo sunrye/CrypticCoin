@@ -3106,3 +3106,31 @@ bool CWallet::IsLockedNote(uint256 hash, size_t js, uint8_t n) const
 
     return (setLockedNotes.count(outpt) > 0);
 }
+
+void CWallet::GetNoteWitnesses(std::vector<JSOutPoint> notes,
+                               std::vector<boost::optional<ZCIncrementalWitness>>& witnesses,
+                               uint256 &final_anchor) {
+    {
+        LOCK(cs_wallet);
+        witnesses.resize(notes.size());
+        boost::optional<uint256> rt;
+        int i = 0;
+        for (JSOutPoint note : notes) {
+            if (mapWallet.count(note.hash) &&
+                    mapWallet[note.hash].mapNoteData.count(note) &&
+                    mapWallet[note.hash].mapNoteData[note].witnesses.size() > 0) {
+                witnesses[i] = mapWallet[note.hash].mapNoteData[note].witnesses.front();
+                if (!rt) {
+                    rt = witnesses[i]->root();
+                } else {
+                    assert(*rt == witnesses[i]->root());
+                }
+            }
+            i++;
+        }
+        // All returned witnesses have the same anchor
+        if (rt) {
+            final_anchor = *rt;
+        }
+    }
+}

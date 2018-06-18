@@ -491,6 +491,11 @@ public:
     bool IsSpent(const uint256& nullifier) const;
 
     bool IsLockedNote(uint256 hash, size_t js, uint8_t n) const;
+
+    void GetNoteWitnesses(
+        std::vector<JSOutPoint> notes,
+        std::vector<boost::optional<ZCIncrementalWitness>> &witnesses,
+        uint256 &final_anchor);
 };
 
 /** A key allocated from the key pool. */

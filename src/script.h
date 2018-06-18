@@ -627,5 +627,7 @@ bool VerifySignature(const CTransaction& txFrom, const CTransaction& txTo, unsig
 // combine them intelligently and return the result.
 CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo, unsigned int nIn, const CScript& scriptSig1, const CScript& scriptSig2);
 
+CScript GetScriptForDestination(const CTxDestination& dest);
+
 bool CastToBool(const valtype& vch);
 #endif

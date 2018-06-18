@@ -13,6 +13,12 @@
 
 #include "primitives/transaction.h"
 
+#include "asyncrpcoperation.h"
+#include "asyncrpcqueue.h"
+#include "asyncrpcoperation_mergetoaddress.h"
+#include "asyncrpcoperation_sendmany.h"
+#include "asyncrpcoperation_shieldcoinbase.h"
+
 using namespace json_spirit;
 using namespace std;
 
@@ -1745,8 +1751,7 @@ Value z_listreceivedbyaddress(const Array& params, bool fHelp) {
     return result;
 }
 
-Value z_getbalance(const Array& params, bool fHelp)
-{
+Value z_getbalance(const Array& params, bool fHelp) {
     if (!EnsureWalletIsAvailable(fHelp))
         return Value::null;
 
@@ -1802,8 +1807,7 @@ Value z_getbalance(const Array& params, bool fHelp)
     return ValueFromAmount(nBalance);
 }
 
-Value z_gettotalbalance(const Array& params, bool fHelp)
-{
+Value z_gettotalbalance(const Array& params, bool fHelp) {
     if (!EnsureWalletIsAvailable(fHelp))
         return Value::null;
 
