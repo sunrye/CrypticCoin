@@ -19,6 +19,8 @@
 #include "asyncrpcoperation_sendmany.h"
 #include "asyncrpcoperation_shieldcoinbase.h"
 
+#include <boost/assign/list_of.hpp>
+
 using namespace json_spirit;
 using namespace std;
 
@@ -2358,5 +2360,130 @@ Value scanforstealthtxns(const Array& params, bool fHelp)
     result.push_back(Pair("found", std::string(cbuf)));
     
     return result;
+}
+
+Value z_listunspent(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 4)
+        throw runtime_error(
+            "z_listunspent ( minconf maxconf includeWatchonly [\"zaddr\",...] )\n"
+            "\nReturns array of unspent shielded notes with between minconf and maxconf (inclusive) confirmations.\n"
+            "Optionally filter to only include notes sent to specified addresses.\n"
+            "When minconf is 0, unspent notes with zero confirmations are returned, even though they are not immediately spendable.\n"
+            "Results are an array of Objects, each of which has:\n"
+            "{txid, jsindex, jsoutindex, confirmations, address, amount, memo}\n"
+            "\nArguments:\n"
+            "1. minconf          (numeric, optional, default=1) The minimum confirmations to filter\n"
+            "2. maxconf          (numeric, optional, default=9999999) The maximum confirmations to filter\n"
+            "3. includeWatchonly (bool, optional, default=false) Also include watchonly addresses (see 'z_importviewingkey')\n"
+            "4. \"addresses\"      (string) A json array of zaddrs to filter on.  Duplicate addresses not allowed.\n"
+            "    [\n"
+            "      \"address\"     (string) zaddr\n"
+            "      ,...\n"
+            "    ]\n"
+            "\nResult\n"
+            "[                             (array of json object)\n"
+            "  {\n"
+            "    \"txid\" : \"txid\",          (string) the transaction id \n"
+            "    \"jsindex\" : n             (numeric) the joinsplit index\n"
+            "    \"jsoutindex\" : n          (numeric) the output index of the joinsplit\n"
+            "    \"confirmations\" : n       (numeric) the number of confirmations\n"
+            "    \"spendable\" : true|false  (boolean) true if note can be spent by wallet, false if note has zero confirmations, false if address is watchonly\n"
+            "    \"address\" : \"address\",    (string) the shielded address\n"
+            "    \"amount\": xxxxx,          (numeric) the amount of value in the note\n"
+            "    \"memo\": xxxxx,            (string) hexademical string representation of memo field\n"
+            "  }\n"
+            "  ,...\n"
+            "]\n"
+
+            "\nExamples:\n"
+        );
+
+    RPCTypeCheck(params, boost::assign::list_of(int_type)(int_type)(bool_type)(array_type));
+
+    int nMinDepth = 1;
+    if (params.size() > 0) {
+        nMinDepth = params[0].get_int();
+    }
+    if (nMinDepth < 0) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Minimum number of confirmations cannot be less than 0");
+    }
+
+    int nMaxDepth = 9999999;
+    if (params.size() > 1) {
+        nMaxDepth = params[1].get_int();
+    }
+    if (nMaxDepth < nMinDepth) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Maximum number of confirmations must be greater or equal to the minimum number of confirmations");
+    }
+
+    std::set<libzcash::PaymentAddress> zaddrs = {};
+
+    bool fIncludeWatchonly = false;
+    if (params.size() > 2) {
+        fIncludeWatchonly = params[2].get_bool();
+    }
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    // User has supplied zaddrs to filter on
+    if (params.size() > 3) {
+        Array addresses = params[3].get_array();
+        if (addresses.size() == 0)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, addresses array is empty.");
+
+        // Keep track of addresses to spot duplicates
+        set<std::string> setAddress;
+
+        // Sources
+        for (size_t i = 0; i < addresses.size(); i++) {
+            const Value& o = addresses[i];
+            string address = o.get_str();
+            try {
+                CZCPaymentAddress zaddr(address);
+                libzcash::PaymentAddress addr = zaddr.Get();
+                if (!fIncludeWatchonly && !pwalletMain->HaveSpendingKey(addr)) {
+                    throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, spending key for address does not belong to wallet: ") + address);
+                }
+                zaddrs.insert(addr);
+            } catch (const std::runtime_error&) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, address is not a valid zaddr: ") + address);
+            }
+
+            if (setAddress.count(address)) {
+                throw JSONRPCError(RPC_INVALID_PARAMETER, string("Invalid parameter, duplicated address: ") + address);
+            }
+            setAddress.insert(address);
+        }
+    }
+    else {
+        // User did not provide zaddrs, so use default i.e. all addresses
+        pwalletMain->GetPaymentAddresses(zaddrs);
+    }
+
+    Array results;
+
+    if (zaddrs.size() > 0) {
+        std::vector<CUnspentNotePlaintextEntry> entries;
+        pwalletMain->GetUnspentFilteredNotes(entries, zaddrs, nMinDepth, nMaxDepth, !fIncludeWatchonly);
+        for (CUnspentNotePlaintextEntry & entry : entries) {
+            Object obj;
+            obj.push_back(Pair("txid",entry.jsop.hash.ToString()));
+            obj.push_back(Pair("jsindex", (int)entry.jsop.js ));
+            obj.push_back(Pair("jsoutindex", (int)entry.jsop.n));
+            obj.push_back(Pair("confirmations", entry.nHeight));
+            obj.push_back(Pair("spendable", pwalletMain->HaveSpendingKey(entry.address)));
+            obj.push_back(Pair("address", CZCPaymentAddress(entry.address).ToString()));
+            obj.push_back(Pair("amount", ValueFromAmount(CAmount(entry.plaintext.value))));
+            std::string data(entry.plaintext.memo.begin(), entry.plaintext.memo.end());
+            obj.push_back(Pair("memo", HexStr(data.begin(), data.end())));
+            results.push_back(obj);
+        }
+    }
+
+    return results;
 }
 

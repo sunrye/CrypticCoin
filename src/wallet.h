@@ -489,6 +489,13 @@ public:
                           bool ignoreSpent=true,
                           bool ignoreUnspendable=true);
 
+    /* Find unspent notes filtered by payment address, min depth and max depth */
+    void GetUnspentFilteredNotes(std::vector<CUnspentNotePlaintextEntry>& outEntries,
+                                 std::set<libzcash::PaymentAddress>& filterAddresses,
+                                 int minDepth=1,
+                                 int maxDepth=INT_MAX,
+                                 bool requireSpendingKey=true);                          
+
     bool IsSpent(const uint256& nullifier) const;
 
     bool IsLockedCoin(uint256 hash, unsigned int n) const;
