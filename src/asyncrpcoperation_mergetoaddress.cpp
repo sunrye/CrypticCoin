@@ -275,7 +275,7 @@ bool AsyncRPCOperation_mergetoaddress::main_impl()
         Object obj;
         CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
         ssTx << tx_;
-        obj.push_back(Pair("rawtxn", HexStr(ssTx.begin(), ssTx.end()));
+        obj.push_back(Pair("rawtxn", HexStr(ssTx.begin(), ssTx.end())));
         sign_send_raw_transaction(obj);
         return true;
     }

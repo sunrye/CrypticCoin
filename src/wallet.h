@@ -499,6 +499,7 @@ public:
     bool IsLockedNote(uint256 hash, size_t js, uint8_t n) const;
     void LockNote(JSOutPoint& output);
     void UnlockNote(JSOutPoint& output);
+    void UnlockAllNotes();
 
     void GetNoteWitnesses(
         std::vector<JSOutPoint> notes,
