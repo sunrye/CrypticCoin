@@ -668,3 +668,26 @@ bool CTxDB::Flush() {
     nullifiersMap.clear();
     return fOk;
 }
+
+bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree){
+    std::map<uint256, CAnchorsCacheEntry>::const_iterator it = anchorsMap.find(rt);
+    if (it != anchorsMap.end()) {
+        if (it->second.entered) {
+            tree = it->second.tree;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    CTxDB txdb("r");
+    if (!txdb.ReadAnchorAt(rt, tree)) {
+        return false;
+    }
+
+    std::map<uint256, CAnchorsCacheEntry>::iterator ret = anchorsMap.insert(std::make_pair(rt, CAnchorsCacheEntry())).first;
+    ret->second.entered = true;
+    ret->second.tree = tree;
+
+    return true;
+}

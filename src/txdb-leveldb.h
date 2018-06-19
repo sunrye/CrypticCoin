@@ -214,5 +214,6 @@ private:
     bool LoadBlockIndexGuts();
 };
 
+bool GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tree);
 
 #endif // BITCOIN_DB_H
