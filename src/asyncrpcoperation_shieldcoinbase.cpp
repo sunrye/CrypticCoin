@@ -22,6 +22,7 @@
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "sodium.h"
 #include "miner.h"
+#include "txdb-leveldb.h"
 
 #include <iostream>
 #include <chrono>
@@ -314,7 +315,8 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
     {
         LOCK(cs_main);
         consensusBranchId = CurrentEpochBranchId(chainActive.Height() + 1, Params().GetConsensus());
-        anchor = pcoinsTip->GetBestAnchor();
+        CTxDB txdb("r");
+        anchor = txdb.GetBestAnchor();
     }
 
 

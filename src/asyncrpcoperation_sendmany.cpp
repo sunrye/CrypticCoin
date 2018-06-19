@@ -23,6 +23,7 @@
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "sodium.h"
 #include "miner.h"
+#include "txdb-leveldb.h"
 
 #include <iostream>
 #include <chrono>
@@ -545,7 +546,7 @@ bool AsyncRPCOperation_sendmany::main_impl() {
             auto it = intermediates.find(prevJoinSplit.anchor);
             if (it != intermediates.end()) {
                 tree = it->second;
-            } else if (!pcoinsTip->GetAnchorAt(prevJoinSplit.anchor, tree)) {
+            } else if (!GetAnchorAt(prevJoinSplit.anchor, tree)) {
                 throw JSONRPCError(RPC_WALLET_ERROR, "Could not find previous JoinSplit anchor");
             }
 
@@ -913,7 +914,8 @@ UniValue AsyncRPCOperation_sendmany::perform_joinsplit(AsyncJoinSplitInfo & info
     uint256 anchor;
     {
         LOCK(cs_main);
-        anchor = pcoinsTip->GetBestAnchor();    // As there are no inputs, ask the wallet for the best anchor
+        CTxDB txdb("r");
+        anchor = txdb.GetBestAnchor();    // As there are no inputs, ask the wallet for the best anchor
     }
     return perform_joinsplit(info, witnesses, anchor);
 }
