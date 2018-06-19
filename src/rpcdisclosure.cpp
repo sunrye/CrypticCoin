@@ -3,14 +3,14 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "base58.h"
-#include "rpcserver.h"
+//#include "rpcserver.h"
 #include "init.h"
 #include "main.h"
-#include "script/script.h"
-#include "script/standard.h"
+#include "script.h"
+//#include "standard.h"
 #include "sync.h"
 #include "util.h"
-#include "utiltime.h"
+//#include "utiltime.h"
 #include "wallet.h"
 
 #include <fstream>
@@ -19,16 +19,17 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 
-#include <univalue.h>
-
 #include "paymentdisclosure.h"
 #include "paymentdisclosuredb.h"
+#include "bitcoinrpc.h"
 
 #include "zcash/Note.hpp"
 #include "zcash/NoteEncryption.hpp"
+#include "json/json_spirit_value.h"
 
 using namespace std;
 using namespace libzcash;
+using namespace json_spirit;
 
 // Function declaration for function implemented in wallet/rpcwallet.cpp
 bool EnsureWalletIsAvailable(bool avoidException);
@@ -36,12 +37,12 @@ bool EnsureWalletIsAvailable(bool avoidException);
 /**
  * RPC call to generate a payment disclosure
  */
-UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp)
+Value z_getpaymentdisclosure(const Array& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
-        return NullUniValue;
+        return Value::null;
 
-    auto fEnablePaymentDisclosure = fExperimentalMode && GetBoolArg("-paymentdisclosure", false);
+    auto fEnablePaymentDisclosure = GetBoolArg("-paymentdisclosure", false);
     string strPaymentDisclosureDisabledMsg = "";
     if (!fEnablePaymentDisclosure) {
         strPaymentDisclosureDisabledMsg = "\nWARNING: Payment disclosure is currently DISABLED. This call always fails.\n";
@@ -61,8 +62,6 @@ UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp)
             "\nResult:\n"
             "\"paymentdisclosure\"  (string) Hex data string, with \"zpd:\" prefix.\n"
             "\nExamples:\n"
-            + HelpExampleCli("z_getpaymentdisclosure", "96f12882450429324d5f3b48630e3168220e49ab7b0f066e5c2935a6b88bb0f2 0 0 \"refund\"")
-            + HelpExampleRpc("z_getpaymentdisclosure", "\"96f12882450429324d5f3b48630e3168220e49ab7b0f066e5c2935a6b88bb0f2\", 0, 0, \"refund\"")
         );
 
     if (!fEnablePaymentDisclosure) {
@@ -82,7 +81,7 @@ UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp)
     uint256 hashBlock;
 
     // Check txid has been seen
-    if (!GetTransaction(hash, tx, hashBlock, true)) {
+    if (!GetTransaction(hash, tx, hashBlock)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
 
@@ -142,12 +141,12 @@ UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp)
 /**
  * RPC call to validate a payment disclosure data blob.
  */
-UniValue z_validatepaymentdisclosure(const UniValue& params, bool fHelp)
+Value z_validatepaymentdisclosure(const Array& params, bool fHelp)
 {
     if (!EnsureWalletIsAvailable(fHelp))
-        return NullUniValue;
+        return Value::null;
 
-    auto fEnablePaymentDisclosure = fExperimentalMode && GetBoolArg("-paymentdisclosure", false);
+    auto fEnablePaymentDisclosure = GetBoolArg("-paymentdisclosure", false);
     string strPaymentDisclosureDisabledMsg = "";
     if (!fEnablePaymentDisclosure) {
         strPaymentDisclosureDisabledMsg = "\nWARNING: Payment disclosure is curretly DISABLED. This call always fails.\n";
@@ -162,8 +161,6 @@ UniValue z_validatepaymentdisclosure(const UniValue& params, bool fHelp)
             "\nArguments:\n"
             "1. \"paymentdisclosure\"     (string, required) Hex data string, with \"zpd:\" prefix.\n"
             "\nExamples:\n"
-            + HelpExampleCli("z_validatepaymentdisclosure", "\"zpd:706462ff004c561a0447ba2ec51184e6c204...\"")
-            + HelpExampleRpc("z_validatepaymentdisclosure", "\"zpd:706462ff004c561a0447ba2ec51184e6c204...\"")
         );
 
     if (!fEnablePaymentDisclosure) {
@@ -209,7 +206,7 @@ UniValue z_validatepaymentdisclosure(const UniValue& params, bool fHelp)
     CTransaction tx;
     uint256 hashBlock;
     // Check if we have seen the transaction
-    if (!GetTransaction(hash, tx, hashBlock, true)) {
+    if (!GetTransaction(hash, tx, hashBlock)) {
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "No information available about transaction");
     }
 
@@ -223,8 +220,8 @@ UniValue z_validatepaymentdisclosure(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_MISC_ERROR, "Transaction is not a shielded transaction");        
     }
 
-    UniValue errs(UniValue::VARR);
-    UniValue o(UniValue::VOBJ);
+    Array errs;
+    Object o;
     o.push_back(Pair("txid", pd.payload.txid.ToString()));
 
     // Check js_index

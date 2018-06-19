@@ -214,7 +214,7 @@ libbitcoin_wallet_a_SOURCES = \
   asyncrpcoperation_mergetoaddress.cpp \
   paymentdisclosure.cpp \
   paymentdisclosuredb.cpp \
-  wallet/rpcdisclosure.cpp \	
+  rpcdisclosure.cpp \	
   wallet.cpp \
   walletdb.cpp \
   stealth.cpp \

@@ -3107,6 +3107,50 @@ bool CWallet::IsLockedNote(uint256 hash, size_t js, uint8_t n) const
     return (setLockedNotes.count(outpt) > 0);
 }
 
+void CWallet::LockNote(JSOutPoint& output)
+{
+    AssertLockHeld(cs_wallet); // setLockedNotes
+    setLockedNotes.insert(output);
+}
+
+void CWallet::UnlockNote(JSOutPoint& output)
+{
+    AssertLockHeld(cs_wallet); // setLockedNotes
+    setLockedNotes.erase(output);
+}
+
+void CWallet::UnlockAllNotes()
+{
+    AssertLockHeld(cs_wallet); // setLockedNotes
+    setLockedNotes.clear();
+}
+
+void CWallet::LockCoin(COutPoint& output)
+{
+    AssertLockHeld(cs_wallet); // setLockedCoins
+    setLockedCoins.insert(output);
+}
+
+void CWallet::UnlockCoin(COutPoint& output)
+{
+    AssertLockHeld(cs_wallet); // setLockedCoins
+    setLockedCoins.erase(output);
+}
+
+void CWallet::UnlockAllCoins()
+{
+    AssertLockHeld(cs_wallet); // setLockedCoins
+    setLockedCoins.clear();
+}
+
+bool CWallet::IsLockedCoin(uint256 hash, unsigned int n) const
+{
+    AssertLockHeld(cs_wallet); // setLockedCoins
+    COutPoint outpt(hash, n);
+
+    return (setLockedCoins.count(outpt) > 0);
+}
+
 void CWallet::GetNoteWitnesses(std::vector<JSOutPoint> notes,
                                std::vector<boost::optional<ZCIncrementalWitness>>& witnesses,
                                uint256 &final_anchor) {

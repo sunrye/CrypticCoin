@@ -17,6 +17,7 @@
 #include "walletdb.h"
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "interpreter.h"
+#include "consensus/upgrades.h"
 
 #include <chrono>
 #include <iostream>
@@ -94,7 +95,7 @@ AsyncRPCOperation_mergetoaddress::AsyncRPCOperation_mergetoaddress(
     lock_notes();
 
     // Enable payment disclosure if requested
-    paymentDisclosureMode = fExperimentalMode && GetBoolArg("-paymentdisclosure", false);
+    paymentDisclosureMode = GetBoolArg("-paymentdisclosure", false);
 }
 
 AsyncRPCOperation_mergetoaddress::~AsyncRPCOperation_mergetoaddress()
@@ -202,7 +203,7 @@ bool AsyncRPCOperation_mergetoaddress::main_impl()
     size_t limit = (size_t)GetArg("-mempooltxinputlimit", 0);
     {
         LOCK(cs_main);
-        if (NetworkUpgradeActive(chainActive.Height() + 1, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
+        if (NetworkUpgradeActive(nBestHeight + 1, Consensus::Params(), Consensus::UPGRADE_OVERWINTER)) {
             limit = 0;
         }
     }
@@ -259,7 +260,7 @@ bool AsyncRPCOperation_mergetoaddress::main_impl()
     // Grab the current consensus branch ID
     {
         LOCK(cs_main);
-        consensusBranchId_ = CurrentEpochBranchId(nBestHeight + 1, Params().GetConsensus());
+        consensusBranchId_ = CurrentEpochBranchId(nBestHeight + 1, Consensus::Params());
     }
 
     /**
@@ -271,7 +272,9 @@ bool AsyncRPCOperation_mergetoaddress::main_impl()
      */
     if (isPureTaddrOnlyTx) {
         Object obj;
-        obj.push_back(Pair("rawtxn", EncodeHexTx(tx_)));
+        CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
+        ssTx << tx_;
+        obj.push_back(Pair("rawtxn", HexStr(ssTx.begin(), ssTx.end()));
         sign_send_raw_transaction(obj);
         return true;
     }

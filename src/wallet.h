@@ -271,6 +271,7 @@ public:
 
     CPubKey vchDefaultKey;
 
+    std::set<COutPoint> setLockedCoins;
     std::set<JSOutPoint> setLockedNotes;
 
     // check whether we are allowed to upgrade (or already support) to the named feature
@@ -490,7 +491,14 @@ public:
 
     bool IsSpent(const uint256& nullifier) const;
 
+    bool IsLockedCoin(uint256 hash, unsigned int n) const;
+    void LockCoin(COutPoint& output);
+    void UnlockCoin(COutPoint& output);
+    void UnlockAllCoins();
+
     bool IsLockedNote(uint256 hash, size_t js, uint8_t n) const;
+    void LockNote(JSOutPoint& output);
+    void UnlockNote(JSOutPoint& output);
 
     void GetNoteWitnesses(
         std::vector<JSOutPoint> notes,
