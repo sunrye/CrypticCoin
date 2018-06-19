@@ -235,6 +235,7 @@ crypto_libbitcoin_crypto_a_SOURCES = \
 libbitcoin_common_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 #libbitcoin_common_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS)
 libbitcoin_common_a_SOURCES = \
+  amount.cpp \
   base58.cpp \
   key.cpp \
   netbase.cpp \
