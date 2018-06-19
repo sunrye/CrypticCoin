@@ -5,24 +5,19 @@
 #include "asyncrpcqueue.h"
 #include "amount.h"
 #include "consensus/upgrades.h"
-#include "core_io.h"
+
 #include "init.h"
 #include "main.h"
 #include "net.h"
 #include "netbase.h"
-#include "rpcserver.h"
-#include "timedata.h"
 #include "util.h"
-#include "utilmoneystr.h"
 #include "wallet.h"
 #include "walletdb.h"
-#include "script/interpreter.h"
-#include "utiltime.h"
-#include "rpcprotocol.h"
 #include "zcash/IncrementalMerkleTree.hpp"
 #include "sodium.h"
-#include "miner.h"
 #include "txdb-leveldb.h"
+#include "interpreter.h"
+#include "script.h"
 
 #include <iostream>
 #include <chrono>
@@ -36,13 +31,13 @@
 
 using namespace libzcash;
 
-static int find_output(UniValue obj, int n) {
-    UniValue outputMapValue = find_value(obj, "outputmap");
-    if (!outputMapValue.isArray()) {
+static int find_output(Value obj, int n) {
+    Value outputMapValue = find_value(obj.get_obj(), "outputmap");
+    if (!outputMapValue.is_null()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Missing outputmap for JoinSplit operation");
     }
 
-    UniValue outputMap = outputMapValue.get_array();
+    Array outputMap = outputMapValue.get_array();
     assert(outputMap.size() == ZC_NUM_JS_OUTPUTS);
     for (size_t i = 0; i < outputMap.size(); i++) {
         if (outputMap[i].get_int() == n) {
@@ -54,11 +49,11 @@ static int find_output(UniValue obj, int n) {
 }
 
 AsyncRPCOperation_shieldcoinbase::AsyncRPCOperation_shieldcoinbase(
-        CMutableTransaction contextualTx,
+        CTransaction contextualTx,
         std::vector<ShieldCoinbaseUTXO> inputs,
         std::string toAddress,
         CAmount fee,
-        UniValue contextInfo) :
+        Value contextInfo) :
         tx_(contextualTx), inputs_(inputs), fee_(fee), contextinfo_(contextInfo)
 {
     assert(contextualTx.nVersion >= 2);  // transaction format version must support vjoinsplit
@@ -79,18 +74,13 @@ AsyncRPCOperation_shieldcoinbase::AsyncRPCOperation_shieldcoinbase(
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, string("runtime error: ") + e.what());
     }
 
-    // Log the context info
-    if (LogAcceptCategory("zrpcunsafe")) {
-        LogPrint("zrpcunsafe", "%s: z_shieldcoinbase initialized (context=%s)\n", getId(), contextInfo.write());
-    } else {
-        LogPrint("zrpc", "%s: z_shieldcoinbase initialized\n", getId());
-    }
+    printf("zrpc %s: z_shieldcoinbase initialized\n", getId());
 
     // Lock UTXOs
     lock_utxos();
 
     // Enable payment disclosure if requested
-    paymentDisclosureMode = fExperimentalMode && GetBoolArg("-paymentdisclosure", false);
+    paymentDisclosureMode = GetBoolArg("-paymentdisclosure", false);
 }
 
 AsyncRPCOperation_shieldcoinbase::~AsyncRPCOperation_shieldcoinbase() {
@@ -117,9 +107,9 @@ void AsyncRPCOperation_shieldcoinbase::main() {
 
     try {
         success = main_impl();
-    } catch (const UniValue& objError) {
-        int code = find_value(objError, "code").get_int();
-        std::string message = find_value(objError, "message").get_str();
+    } catch (const Value& objError) {
+        int code = find_value(objError.get_obj(), "code").get_int();
+        std::string message = find_value(objError.get_obj(), "message").get_str();
         set_error_code(code);
         set_error_message(message);
     } catch (const runtime_error& e) {
@@ -158,7 +148,7 @@ void AsyncRPCOperation_shieldcoinbase::main() {
     } else {
         s += strprintf(", error=%s)\n", getErrorMessage());
     }
-    LogPrintf("%s",s);
+    printf("%s",s);
 
     unlock_utxos(); // clean up
 
@@ -169,9 +159,9 @@ void AsyncRPCOperation_shieldcoinbase::main() {
         for (PaymentDisclosureKeyInfo p : paymentDisclosureData_) {
             p.first.hash = txidhash;
             if (!db->Put(p.first, p.second)) {
-                LogPrint("paymentdisclosure", "%s: Payment Disclosure: Error writing entry to database for key %s\n", getId(), p.first.ToString());
+                printf("paymentdisclosure %s: Payment Disclosure: Error writing entry to database for key %s\n", getId(), p.first.ToString());
             } else {
-                LogPrint("paymentdisclosure", "%s: Payment Disclosure: Successfully added entry to database for key %s\n", getId(), p.first.ToString());
+                printf("paymentdisclosure %s: Payment Disclosure: Successfully added entry to database for key %s\n", getId(), p.first.ToString());
             }
         }
     }
@@ -189,7 +179,7 @@ bool AsyncRPCOperation_shieldcoinbase::main_impl() {
     size_t limit = (size_t)GetArg("-mempooltxinputlimit", 0);
     {
         LOCK(cs_main);
-        if (NetworkUpgradeActive(chainActive.Height() + 1, Params().GetConsensus(), Consensus::UPGRADE_OVERWINTER)) {
+        if (NetworkUpgradeActive(nBestHeight + 1, Consensus::Params(), Consensus::UPGRADE_OVERWINTER)) {
             limit = 0;
         }
     }
@@ -211,11 +201,11 @@ bool AsyncRPCOperation_shieldcoinbase::main_impl() {
     }
 
     CAmount sendAmount = targetAmount - minersFee;
-    LogPrint("zrpc", "%s: spending %s to shield %s with fee %s\n",
-            getId(), FormatMoney(targetAmount), FormatMoney(sendAmount), FormatMoney(minersFee));
+    printf("zrpc %s: spending %s to shield %s with fee %s\n",
+        getId(), FormatMoney(targetAmount), FormatMoney(sendAmount), FormatMoney(minersFee));
 
     // update the transaction with these inputs
-    CMutableTransaction rawTx(tx_);
+    CTransaction rawTx(tx_);
     for (ShieldCoinbaseUTXO & t : inputs_) {
         CTxIn in(COutPoint(t.txid, t.vout));
         rawTx.vin.push_back(in);
@@ -223,13 +213,13 @@ bool AsyncRPCOperation_shieldcoinbase::main_impl() {
     tx_ = CTransaction(rawTx);
 
     // Prepare raw transaction to handle JoinSplits
-    CMutableTransaction mtx(tx_);
+    CTransaction mtx(tx_);
     crypto_sign_keypair(joinSplitPubKey_.begin(), joinSplitPrivKey_);
     mtx.joinSplitPubKey = joinSplitPubKey_;
     tx_ = CTransaction(mtx);
 
     // Create joinsplit
-    UniValue obj(UniValue::VOBJ);
+    Value obj;
     ShieldCoinbaseJSInfo info;
     info.vpub_old = sendAmount;
     info.vpub_new = 0;
@@ -246,28 +236,28 @@ bool AsyncRPCOperation_shieldcoinbase::main_impl() {
  * Sign and send a raw transaction.
  * Raw transaction as hex string should be in object field "rawtxn"
  */
-void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(UniValue obj)
+void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(Value obj)
 {
     // Sign the raw transaction
-    UniValue rawtxnValue = find_value(obj, "rawtxn");
-    if (rawtxnValue.isNull()) {
+    Value rawtxnValue = find_value(obj.get_obj(), "rawtxn");
+    if (rawtxnValue.is_null()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Missing hex data for raw transaction");
     }
     std::string rawtxn = rawtxnValue.get_str();
 
-    UniValue params = UniValue(UniValue::VARR);
+    Array params;
     params.push_back(rawtxn);
-    UniValue signResultValue = signrawtransaction(params, false);
-    UniValue signResultObject = signResultValue.get_obj();
-    UniValue completeValue = find_value(signResultObject, "complete");
+    Value signResultValue = signrawtransaction(params, false);
+    Value signResultObject = signResultValue.get_obj();
+    Value completeValue = find_value(signResultObject.get_obj(), "complete");
     bool complete = completeValue.get_bool();
     if (!complete) {
         // TODO: #1366 Maybe get "errors" and print array vErrors into a string
         throw JSONRPCError(RPC_WALLET_ENCRYPTION_FAILED, "Failed to sign transaction");
     }
 
-    UniValue hexValue = find_value(signResultObject, "hex");
-    if (hexValue.isNull()) {
+    Value hexValue = find_value(signResultObject.get_obj(), "hex");
+    if (hexValue.is_null()) {
         throw JSONRPCError(RPC_WALLET_ERROR, "Missing hex data for signed transaction");
     }
     std::string signedtxn = hexValue.get_str();
@@ -275,16 +265,15 @@ void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(UniValue obj)
     // Send the signed transaction
     if (!testmode) {
         params.clear();
-        params.setArray();
         params.push_back(signedtxn);
-        UniValue sendResultValue = sendrawtransaction(params, false);
-        if (sendResultValue.isNull()) {
+        Value sendResultValue = sendrawtransaction(params, false);
+        if (sendResultValue.is_null()) {
             throw JSONRPCError(RPC_WALLET_ERROR, "Send raw transaction did not return an error or a txid.");
         }
 
         std::string txid = sendResultValue.get_str();
 
-        UniValue o(UniValue::VOBJ);
+        Object o;
         o.push_back(Pair("txid", txid));
         set_result(o);
     } else {
@@ -294,7 +283,7 @@ void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(UniValue obj)
         CTransaction tx;
         stream >> tx;
 
-        UniValue o(UniValue::VOBJ);
+        Object o;
         o.push_back(Pair("test", 1));
         o.push_back(Pair("txid", tx.GetHash().ToString()));
         o.push_back(Pair("hex", signedtxn));
@@ -309,12 +298,12 @@ void AsyncRPCOperation_shieldcoinbase::sign_send_raw_transaction(UniValue obj)
 }
 
 
-UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInfo & info) {
+Value AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInfo & info) {
     uint32_t consensusBranchId;
     uint256 anchor;
     {
         LOCK(cs_main);
-        consensusBranchId = CurrentEpochBranchId(chainActive.Height() + 1, Params().GetConsensus());
+        consensusBranchId = CurrentEpochBranchId(nBestHeight + 1, Consensus::Params());
         CTxDB txdb("r");
         anchor = txdb.GetBestAnchor();
     }
@@ -337,9 +326,9 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
         throw runtime_error("unsupported joinsplit input/output counts");
     }
 
-    CMutableTransaction mtx(tx_);
+    CTransaction mtx(tx_);
 
-    LogPrint("zrpcunsafe", "%s: creating joinsplit at index %d (vpub_old=%s, vpub_new=%s, in[0]=%s, in[1]=%s, out[0]=%s, out[1]=%s)\n",
+    printf("zrpcunsafe %s: creating joinsplit at index %d (vpub_old=%s, vpub_new=%s, in[0]=%s, in[1]=%s, out[0]=%s, out[1]=%s)\n",
             getId(),
             tx_.vjoinsplit.size(),
             FormatMoney(info.vpub_old), FormatMoney(info.vpub_new),
@@ -428,8 +417,8 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
         encryptedNote2 = HexStr(ss2.begin(), ss2.end());
     }
 
-    UniValue arrInputMap(UniValue::VARR);
-    UniValue arrOutputMap(UniValue::VARR);
+    Array arrInputMap;
+    Array arrOutputMap;
     for (size_t i = 0; i < ZC_NUM_JS_INPUTS; i++) {
         arrInputMap.push_back(static_cast<uint64_t>(inputMap[i]));
     }
@@ -454,11 +443,11 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
         paymentDisclosureData_.push_back(PaymentDisclosureKeyInfo(pdKey, pdInfo));
 
         CZCPaymentAddress address(zaddr);
-        LogPrint("paymentdisclosure", "%s: Payment Disclosure: js=%d, n=%d, zaddr=%s\n", getId(), js_index, int(mapped_index), address.ToString());
+        printf("paymentdisclosure %s: Payment Disclosure: js=%d, n=%d, zaddr=%s\n", getId(), js_index, int(mapped_index), address.ToString());
     }
     // !!! Payment disclosure END
 
-    UniValue obj(UniValue::VOBJ);
+    Object obj;
     obj.push_back(Pair("encryptednote1", encryptedNote1));
     obj.push_back(Pair("encryptednote2", encryptedNote2));
     obj.push_back(Pair("rawtxn", HexStr(ss.begin(), ss.end())));
@@ -470,13 +459,13 @@ UniValue AsyncRPCOperation_shieldcoinbase::perform_joinsplit(ShieldCoinbaseJSInf
 /**
  * Override getStatus() to append the operation's context object to the default status object.
  */
-UniValue AsyncRPCOperation_shieldcoinbase::getStatus() const {
-    UniValue v = AsyncRPCOperation::getStatus();
-    if (contextinfo_.isNull()) {
+Value AsyncRPCOperation_shieldcoinbase::getStatus() const {
+    Value v = AsyncRPCOperation::getStatus();
+    if (contextinfo_.is_null()) {
         return v;
     }
 
-    UniValue obj = v.get_obj();
+    Object obj = v.get_obj();
     obj.push_back(Pair("method", "z_shieldcoinbase"));
     obj.push_back(Pair("params", contextinfo_ ));
     return obj;
