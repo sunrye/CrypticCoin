@@ -21,11 +21,12 @@ inline bool MoneyRange(const CAmount& nValue) { return (nValue >= 0 && nValue <=
 
 
 static const int64 MIN_TX_FEE = 1 * CENT;
-static const int64 MIN_RELAY_TX_FEE = 1 * CENT;
+static const int64 DEFAULT_MIN_RELAY_TX_FEE = 1 * CENT;
 static const int64 PREMINE_AMOUNT = 3039442960 * COIN;
 static const int64 FREECO_AMOUNT = 379930370 * COIN;
 static const int64 AMB_FREECO_AMOUNT = 759860740 * COIN;
 
 static const int64 MIN_TXOUT_AMOUNT = MIN_TX_FEE;
 
+extern CAmount minRelayTxFee;
 #endif //CRYPTICCOIN_AMOUNT_H

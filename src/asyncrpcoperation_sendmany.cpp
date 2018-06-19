@@ -271,7 +271,22 @@ bool AsyncRPCOperation_sendmany::main_impl() {
         secret.MakeNewKey(true);
         CScript scriptPubKey = GetScriptForDestination(secret.GetPubKey().GetID());
         CTxOut out(CAmount(1), scriptPubKey);
-        CAmount dustThreshold = out.GetDustThreshold(minRelayTxFee);
+
+        CAmount dustThreshold = 0;
+
+        if (!out.scriptPubKey.IsUnspendable()){
+            // "Dust" is defined in terms of CTransaction::minRelayTxFee,
+            // which has units satoshis-per-kilobyte.
+            // If you'd pay more than 1/3 in fees
+            // to spend something, then we consider it dust.
+            // A typical spendable txout is 34 bytes big, and will
+            // need a CTxIn of at least 148 bytes to spend:
+            // so dust is a spendable txout less than 54 satoshis
+            // with default minRelayTxFee.
+            size_t nSize = out.GetSerializeSize(SER_DISK,0) + 148u;
+            dustThreshold = 3 * minRelayTxFee * nSize / 1000;
+        }
+
         CAmount dustChange = -1;
 
         std::vector<SendManyInputUTXO> selectedTInputs;
