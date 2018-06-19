@@ -212,6 +212,7 @@ libbitcoin_wallet_a_SOURCES = \
   rpcwallet.cpp \
   rpcsmessage.cpp \
   asyncrpcoperation_mergetoaddress.cpp \
+	asyncrpcoperation_sendmany.cpp \
   paymentdisclosure.cpp \
   paymentdisclosuredb.cpp \
   rpcdisclosure.cpp \	
