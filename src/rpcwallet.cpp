@@ -3224,3 +3224,100 @@ Value z_shieldcoinbase(const Array& params, bool fHelp)
     return o;
 }
 
+Value z_getoperationstatus_IMPL(const Array& params, bool fRemoveFinishedOperations=false)
+{
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    std::set<AsyncRPCOperationId> filter;
+    if (params.size()==1) {
+        Array ids = params[0].get_array();
+        for (size_t i = 0; i < ids.size(); i++) {            
+            filter.insert(ids[i].get_str());
+        }
+    }
+    bool useFilter = (filter.size()>0);
+
+    Array ret;
+    std::shared_ptr<AsyncRPCQueue> q = getAsyncRPCQueue();
+    std::vector<AsyncRPCOperationId> ids = q->getAllOperationIds();
+
+    for (auto id : ids) {
+        if (useFilter && !filter.count(id))
+            continue;
+
+        std::shared_ptr<AsyncRPCOperation> operation = q->getOperationForId(id);
+        if (!operation) {
+            continue;
+            // It's possible that the operation was removed from the internal queue and map during this loop
+            // throw JSONRPCError(RPC_INVALID_PARAMETER, "No operation exists for that id.");
+        }
+
+        Value obj = operation->getStatus();        
+        std::string s = find_value(obj.get_obj(), "status").get_str();
+        if (fRemoveFinishedOperations) {
+            // Caller is only interested in retrieving finished results
+            if ("success"==s || "failed"==s || "cancelled"==s) {
+                ret.push_back(obj);
+                q->popOperationForId(id);
+            }
+        } else {
+            ret.push_back(obj);
+        }
+    }
+
+    Array arrTmp = ret;
+
+    // sort results chronologically by creation_time
+    std::sort(arrTmp.begin(), arrTmp.end(), [](Value a, Value b) -> bool {
+        const int64_t t1 = find_value(a.get_obj(), "creation_time").get_int64();
+        const int64_t t2 = find_value(b.get_obj(), "creation_time").get_int64();
+        return t1 < t2;
+    });
+
+    ret.clear();
+
+    return arrTmp;
+}
+
+Value z_getoperationresult(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "z_getoperationresult ([\"operationid\", ... ]) \n"
+            "\nRetrieve the result and status of an operation which has finished, and then remove the operation from memory."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"operationid\"         (array, optional) A list of operation ids we are interested in.  If not provided, examine all operations known to the node.\n"
+            "\nResult:\n"
+            "\"    [object, ...]\"      (array) A list of JSON objects\n"
+            "\nExamples:\n"
+        );
+
+    // This call will remove finished operations
+    return z_getoperationstatus_IMPL(params, true);
+}
+
+Value z_getoperationstatus(const Array& params, bool fHelp)
+{
+   if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "z_getoperationstatus ([\"operationid\", ... ]) \n"
+            "\nGet operation status and any associated result or error data.  The operation will remain in memory."
+            + HelpRequiringPassphrase() + "\n"
+            "\nArguments:\n"
+            "1. \"operationid\"         (array, optional) A list of operation ids we are interested in.  If not provided, examine all operations known to the node.\n"
+            "\nResult:\n"
+            "\"    [object, ...]\"      (array) A list of JSON objects\n"
+            "\nExamples:\n"
+        );
+
+   // This call is idempotent so we don't want to remove finished operations
+   return z_getoperationstatus_IMPL(params, false);
+}
+
