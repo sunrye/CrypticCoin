@@ -44,6 +44,18 @@ void EnsureWalletIsUnlocked()
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Wallet unlocked for block minting only.");
 }
 
+bool EnsureWalletIsAvailable(bool avoidException)
+{
+    if (!pwalletMain)
+    {
+        if (!avoidException)
+            throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
+        else
+            return false;
+    }
+    return true;
+}
+
 void WalletTxToJSON(const CWalletTx& wtx, Object& entry)
 {
     int confirms = wtx.GetDepthInMainChain();
@@ -1680,18 +1692,6 @@ CAmount getBalanceZaddr(std::string address, int minDepth = 1, bool ignoreUnspen
 //     }
 //     return ret;
 // }
-
-bool EnsureWalletIsAvailable(bool avoidException)
-{
-    if (!pwalletMain)
-    {
-        if (!avoidException)
-            throw JSONRPCError(RPC_METHOD_NOT_FOUND, "Method not found (disabled)");
-        else
-            return false;
-    }
-    return true;
-}
 
 Value z_listreceivedbyaddress(const Array& params, bool fHelp) {
     if (!EnsureWalletIsAvailable(fHelp))

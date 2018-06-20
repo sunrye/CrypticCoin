@@ -93,3 +93,37 @@ Value dumpprivkey(const Array& params, bool fHelp)
         throw JSONRPCError(RPC_WALLET_ERROR, "Private key for address " + strAddress + " is not known");
     return CBitcoinSecret(vchSecret, fCompressed).ToString();
 }
+
+
+Value z_exportkey(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "z_exportkey \"zaddr\"\n"
+            "\nReveals the zkey corresponding to 'zaddr'.\n"
+            "Then the z_importkey can be used with this output\n"
+            "\nArguments:\n"
+            "1. \"zaddr\"   (string, required) The zaddr for the private key\n"
+            "\nResult:\n"
+            "\"key\"                  (string) The private key\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+
+    CZCPaymentAddress address(strAddress);
+    auto addr = address.Get();
+
+    libzcash::SpendingKey k;
+    if (!pwalletMain->GetSpendingKey(addr, k))
+        throw JSONRPCError(RPC_WALLET_ERROR, "Wallet does not hold private zkey for this zaddr");
+
+    CZCSpendingKey spendingkey(k);
+    return spendingkey.ToString();
+}

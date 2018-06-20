@@ -132,6 +132,7 @@ extern double GetDifficulty(const CBlockIndex* blockindex, int algo);
 extern std::string HexBits(unsigned int nBits);
 extern std::string HelpRequiringPassphrase();
 extern void EnsureWalletIsUnlocked();
+extern bool EnsureWalletIsAvailable(bool avoidException);
 
 
 extern json_spirit::Value getconnectioncount(const json_spirit::Array& params, bool fHelp); // in rpcnet.cpp
