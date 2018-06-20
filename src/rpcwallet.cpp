@@ -3321,3 +3321,47 @@ Value z_getoperationstatus(const Array& params, bool fHelp)
    return z_getoperationstatus_IMPL(params, false);
 }
 
+Value z_listoperationids(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "z_listoperationids\n"
+            "\nReturns the list of operation ids currently known to the wallet.\n"
+            "\nArguments:\n"
+            "1. \"status\"         (string, optional) Filter result by the operation's state e.g. \"success\".\n"
+            "\nResult:\n"
+            "[                     (json array of string)\n"
+            "  \"operationid\"       (string) an operation id belonging to the wallet\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    std::string filter;
+    bool useFilter = false;
+    if (params.size()==1) {
+        filter = params[0].get_str();
+        useFilter = true;
+    }
+
+    Array ret;
+    std::shared_ptr<AsyncRPCQueue> q = getAsyncRPCQueue();
+    std::vector<AsyncRPCOperationId> ids = q->getAllOperationIds();
+    for (auto id : ids) {
+        std::shared_ptr<AsyncRPCOperation> operation = q->getOperationForId(id);
+        if (!operation) {
+            continue;
+        }
+        std::string state = operation->getStateAsString();
+        if (useFilter && filter.compare(state)!=0)
+            continue;
+        ret.push_back(id);
+    }
+
+    return ret;
+}
+
