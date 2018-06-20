@@ -26,6 +26,35 @@ enum DBErrors
     DB_NEED_REWRITE
 };
 
+class CKeyMetadata
+{
+  public:
+    static const int CURRENT_VERSION = 1;
+    int nVersion;
+    int64_t nCreateTime; // 0 means unknown
+
+    CKeyMetadata()
+    {
+        SetNull();
+    }
+    CKeyMetadata(int64_t nCreateTime_)
+    {
+        nVersion = CKeyMetadata::CURRENT_VERSION;
+        nCreateTime = nCreateTime_;
+    }
+
+    IMPLEMENT_SERIALIZE(
+        READWRITE(this->nVersion);
+        nVersion = this->nVersion;
+        READWRITE(nCreateTime);)
+
+    void SetNull()
+    {
+        nVersion = CKeyMetadata::CURRENT_VERSION;
+        nCreateTime = 0;
+    }
+};
+
 class CStealthKeyMetadata
 {
 // -- used to get secret for keys created by stealth transaction with wallet locked
@@ -211,6 +240,9 @@ public:
     DBErrors LoadWallet(CWallet* pwallet);
     static bool Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys);
     static bool Recover(CDBEnv& dbenv, std::string filename);
+    
+    /// Write spending key to wallet database, where key is payment address and value is spending key.
+    bool WriteZKey(const libzcash::PaymentAddress& addr, const libzcash::SpendingKey& key, const CKeyMetadata &keyMeta);
 };
 
 #endif // BITCOIN_WALLETDB_H

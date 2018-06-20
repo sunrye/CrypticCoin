@@ -3388,3 +3388,39 @@ Value z_getnewaddress(const Array& params, bool fHelp) {
     return result;
 }
 
+Value z_listaddresses(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "z_listaddresses ( includeWatchonly )\n"
+            "\nReturns the list of zaddr belonging to the wallet.\n"
+            "\nArguments:\n"
+            "1. includeWatchonly (bool, optional, default=false) Also include watchonly addresses (see 'z_importviewingkey')\n"
+            "\nResult:\n"
+            "[                     (json array of string)\n"
+            "  \"zaddr\"           (string) a zaddr belonging to the wallet\n"
+            "  ,...\n"
+            "]\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    bool fIncludeWatchonly = false;
+    if (params.size() > 0) {
+        fIncludeWatchonly = params[0].get_bool();
+    }
+
+    Array ret;
+    std::set<libzcash::PaymentAddress> addresses;
+    pwalletMain->GetPaymentAddresses(addresses);
+    for (auto addr : addresses ) {
+        if (fIncludeWatchonly || pwalletMain->HaveSpendingKey(addr)) {
+            ret.push_back(CZCPaymentAddress(addr).ToString());
+        }
+    }
+    return ret;
+}
+

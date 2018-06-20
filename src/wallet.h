@@ -243,6 +243,8 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 
+    std::map<libzcash::PaymentAddress, CKeyMetadata> mapZKeyMetadata;
+
     CWallet()
     {
         nWalletVersion = FEATURE_BASE;
@@ -308,6 +310,9 @@ public:
 
     // Generates a new zaddr
     CZCPaymentAddress GenerateNewZKey();
+
+    // Adds spending key to the store, and saves it to disk
+    bool AddZKey(const libzcash::SpendingKey &key);
 
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64, TxPair > TxItems;
