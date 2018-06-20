@@ -517,7 +517,7 @@ bool AppInit2()
     scrypt_detect_sse2();
 #endif
 
-    sleep(60);
+    // sleep(60);
 
      // ********************************************************* Step 5: verify database integrity
 
