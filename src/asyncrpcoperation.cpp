@@ -117,13 +117,13 @@ void AsyncRPCOperation::main() {
  * Return the error of the completed operation as a UniValue object.
  * If there is no error, return null UniValue.
  */
-UniValue AsyncRPCOperation::getError() const {
+Value AsyncRPCOperation::getError() const {
     if (!isFailed()) {
-        return NullUniValue;
+        return Value::null;
     }
 
     std::lock_guard<std::mutex> guard(lock_);
-    UniValue error(UniValue::VOBJ);
+    Object error;
     error.push_back(Pair("code", this->error_code_));
     error.push_back(Pair("message", this->error_message_));
     return error;
@@ -133,9 +133,9 @@ UniValue AsyncRPCOperation::getError() const {
  * Return the result of the completed operation as a UniValue object.
  * If the operation did not succeed, return null UniValue.
  */
-UniValue AsyncRPCOperation::getResult() const {
+Value AsyncRPCOperation::getResult() const {
     if (!isSuccess()) {
-        return NullUniValue;
+        return Value::null;
     }
 
     std::lock_guard<std::mutex> guard(lock_);
@@ -149,19 +149,19 @@ UniValue AsyncRPCOperation::getResult() const {
  * If the operation has succeeded, it will include the result value.
  * If the operation was cancelled, there will be no error object or result value.
  */
-UniValue AsyncRPCOperation::getStatus() const {
+Value AsyncRPCOperation::getStatus() const {
     OperationStatus status = this->getState();
-    UniValue obj(UniValue::VOBJ);
+    Object obj;
     obj.push_back(Pair("id", this->id_));
     obj.push_back(Pair("status", OperationStatusMap[status]));
     obj.push_back(Pair("creation_time", this->creation_time_));
     // TODO: Issue #1354: There may be other useful metadata to return to the user.
-    UniValue err = this->getError();
-    if (!err.isNull()) {
+    Value err = this->getError();
+    if (!err.is_null()) {
         obj.push_back(Pair("error", err.get_obj()));
     }
-    UniValue result = this->getResult();
-    if (!result.isNull()) {
+    Value result = this->getResult();
+    if (!result.is_null()) {
         obj.push_back(Pair("result", result));
 
         // Include execution time for successful operation

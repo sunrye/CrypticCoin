@@ -183,6 +183,8 @@ libbitcoin_server_a_CPPFLAGS = -O0 -g $(BITCOIN_INCLUDES)
 libbitcoin_server_a_SOURCES = \
   addrman.cpp \
   alert.cpp \
+	asyncrpcoperation.cpp \
+  asyncrpcqueue.cpp \
   bloom.cpp \
   checkpoints.cpp \
   init.cpp \
@@ -211,6 +213,8 @@ libbitcoin_wallet_a_SOURCES = \
   rpcdump.cpp \
   rpcwallet.cpp \
   rpcsmessage.cpp \
+	asyncrpcoperation.cpp \
+  asyncrpcqueue.cpp \	
   asyncrpcoperation_mergetoaddress.cpp \
 	asyncrpcoperation_sendmany.cpp \
 	asyncrpcoperation_shieldcoinbase.cpp \
