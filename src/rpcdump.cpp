@@ -127,3 +127,76 @@ Value z_exportkey(const Array& params, bool fHelp) {
     CZCSpendingKey spendingkey(k);
     return spendingkey.ToString();
 }
+
+Value z_importkey(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "z_importkey \"zkey\" ( rescan startHeight )\n"
+            "\nAdds a zkey (as returned by z_exportkey) to your wallet.\n"
+            "\nArguments:\n"
+            "1. \"zkey\"           (string, required) The zkey (see z_exportkey)\n"
+            "2. rescan             (string, optional, default=\"whenkeyisnew\") Rescan the wallet for transactions - can be \"yes\", \"no\" or \"whenkeyisnew\"\n"
+            "3. startHeight        (numeric, optional, default=0) Block height to start rescan from\n"
+            "\nNote: This call can take minutes to complete if rescan is true.\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    // Whether to perform rescan after import
+    bool fRescan = true;
+    bool fIgnoreExistingKey = true;
+    if (params.size() > 1) {
+        auto rescan = params[1].get_str();
+        if (rescan.compare("whenkeyisnew") != 0) {
+            fIgnoreExistingKey = false;
+            if (rescan.compare("yes") == 0) {
+                fRescan = true;
+            } else if (rescan.compare("no") == 0) {
+                fRescan = false;
+            }
+        }
+    }
+
+    // Height to rescan from
+    int nRescanHeight = 0;
+    if (params.size() > 2)
+        nRescanHeight = params[2].get_int();
+    if (nRescanHeight < 0 || nRescanHeight > nBestHeight) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+    }
+
+    string strSecret = params[0].get_str();
+    CZCSpendingKey spendingkey(strSecret);
+    auto key = spendingkey.Get();
+    auto addr = key.address();
+
+    {
+        // Don't throw error in case a key is already there
+        if (pwalletMain->HaveSpendingKey(addr)) {
+            if (fIgnoreExistingKey) {
+                return Value::null;
+            }
+        } else {
+            pwalletMain->MarkDirty();
+
+            if (!pwalletMain-> AddZKey(key))
+                throw JSONRPCError(RPC_WALLET_ERROR, "Error adding spending key to wallet");
+
+            pwalletMain->mapZKeyMetadata[addr].nCreateTime = 1;
+        }
+
+        // We want to scan for transactions and notes
+        if (fRescan) {
+            pwalletMain->ScanForWalletTransactions(FindBlockByHeight(nRescanHeight), true);
+        }
+    }
+
+    return Value::null;
+}
