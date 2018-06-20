@@ -238,3 +238,82 @@ Value z_exportviewingkey(const Array& params, bool fHelp) {
     CZCViewingKey viewingkey(vk);
     return viewingkey.ToString();
 }
+
+Value z_importviewingkey(const Array& params, bool fHelp)
+{
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() < 1 || params.size() > 3)
+        throw runtime_error(
+            "z_importviewingkey \"vkey\" ( rescan startHeight )\n"
+            "\nAdds a viewing key (as returned by z_exportviewingkey) to your wallet.\n"
+            "\nArguments:\n"
+            "1. \"vkey\"             (string, required) The viewing key (see z_exportviewingkey)\n"
+            "2. rescan             (string, optional, default=\"whenkeyisnew\") Rescan the wallet for transactions - can be \"yes\", \"no\" or \"whenkeyisnew\"\n"
+            "3. startHeight        (numeric, optional, default=0) Block height to start rescan from\n"
+            "\nNote: This call can take minutes to complete if rescan is true.\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    // Whether to perform rescan after import
+    bool fRescan = true;
+    bool fIgnoreExistingKey = true;
+    if (params.size() > 1) {
+        auto rescan = params[1].get_str();
+        if (rescan.compare("whenkeyisnew") != 0) {
+            fIgnoreExistingKey = false;
+            if (rescan.compare("no") == 0) {
+                fRescan = false;
+            } else if (rescan.compare("yes") != 0) {
+                throw JSONRPCError(
+                    RPC_INVALID_PARAMETER,
+                    "rescan must be \"yes\", \"no\" or \"whenkeyisnew\"");
+            }
+        }
+    }
+
+    // Height to rescan from
+    int nRescanHeight = 0;
+    if (params.size() > 2) {
+        nRescanHeight = params[2].get_int();
+    }
+    if (nRescanHeight < 0 || nRescanHeight > nBestHeight) {
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Block height out of range");
+    }
+
+    string strVKey = params[0].get_str();
+    CZCViewingKey viewingkey(strVKey);
+    auto vkey = viewingkey.Get();
+    auto addr = vkey.address();
+
+    {
+        if (pwalletMain->HaveSpendingKey(addr)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "The wallet already contains the private key for this viewing key");
+        }
+
+        // Don't throw error in case a viewing key is already there
+        if (pwalletMain->HaveViewingKey(addr)) {
+            if (fIgnoreExistingKey) {
+                return Value::null;
+            }
+        } else {
+            pwalletMain->MarkDirty();
+
+            if (!pwalletMain->AddViewingKey(vkey)) {
+                throw JSONRPCError(RPC_WALLET_ERROR, "Error adding viewing key to wallet");
+            }
+        }
+
+        // We want to scan for transactions and notes
+        if (fRescan) {
+            pwalletMain->ScanForWalletTransactions(FindBlockByHeight(nRescanHeight), true);
+        }
+    }
+
+    return Value::null;
+}
