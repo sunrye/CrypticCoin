@@ -200,3 +200,41 @@ Value z_importkey(const Array& params, bool fHelp)
 
     return Value::null;
 }
+
+Value z_exportviewingkey(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "z_exportviewingkey \"zaddr\"\n"
+            "\nReveals the viewing key corresponding to 'zaddr'.\n"
+            "Then the z_importviewingkey can be used with this output\n"
+            "\nArguments:\n"
+            "1. \"zaddr\"   (string, required) The zaddr for the viewing key\n"
+            "\nResult:\n"
+            "\"vkey\"                  (string) The viewing key\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    string strAddress = params[0].get_str();
+
+    CZCPaymentAddress address(strAddress);
+    auto addr = address.Get();
+
+    libzcash::ViewingKey vk;
+    if (!pwalletMain->GetViewingKey(addr, vk)) {
+        libzcash::SpendingKey k;
+        if (!pwalletMain->GetSpendingKey(addr, k)) {
+            throw JSONRPCError(RPC_WALLET_ERROR, "Wallet does not hold private key or viewing key for this zaddr");
+        }
+        vk = k.viewing_key();
+    }
+
+    CZCViewingKey viewingkey(vk);
+    return viewingkey.ToString();
+}
