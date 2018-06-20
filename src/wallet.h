@@ -306,6 +306,9 @@ public:
      */
     int64 IncOrderPosNext(CWalletDB *pwalletdb = NULL);
 
+    // Generates a new zaddr
+    CZCPaymentAddress GenerateNewZKey();
+
     typedef std::pair<CWalletTx*, CAccountingEntry*> TxPair;
     typedef std::multimap<int64, TxPair > TxItems;
 

@@ -3365,3 +3365,26 @@ Value z_listoperationids(const Array& params, bool fHelp) {
     return ret;
 }
 
+Value z_getnewaddress(const Array& params, bool fHelp) {
+    if (!EnsureWalletIsAvailable(fHelp))
+        return Value::null;
+
+    if (fHelp || params.size() > 0)
+        throw runtime_error(
+            "z_getnewaddress\n"
+            "\nReturns a new zaddr for receiving payments.\n"
+            "\nArguments:\n"
+            "\nResult:\n"
+            "\"zcashaddress\"    (string) The new zaddr\n"
+            "\nExamples:\n"
+        );
+
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+
+    EnsureWalletIsUnlocked();
+
+    CZCPaymentAddress pubaddr = pwalletMain->GenerateNewZKey();
+    std::string result = pubaddr.ToString();
+    return result;
+}
+
