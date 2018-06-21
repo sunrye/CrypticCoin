@@ -27,8 +27,6 @@
 #include <signal.h>
 #endif
 
-// #define DEBUG_SINGLE_FLOW
-
 using namespace std;
 using namespace boost;
 
@@ -473,7 +471,7 @@ bool AppInit2()
     if (!lock.try_lock())
         return InitError(strprintf(_("Cannot obtain a lock on data directory %s.  CrypticCoin is probably already running."), strDataDir.c_str()));
 
-#if !defined(WIN32) && !defined(DEBUG_SINGLE_FLOW)
+#if !defined(WIN32)
     if (fDaemon && fHeadless)
     {
         // Daemonize
