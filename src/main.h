@@ -31,7 +31,7 @@ class CInv;
 class CRequestTracker;
 class CNode;
 
-static const int SAME_ALGO_MAX_COUNT = 6;
+static const int SAME_ALGO_MAX_COUNT = 5;
 //moved to consensus.h
 //static const unsigned int MAX_BLOCK_SIZE = 1000000;
 //static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
