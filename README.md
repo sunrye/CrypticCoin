@@ -52,6 +52,7 @@ On Ubuntu 18.04 (doesn't work on 16.04):
 Get mingw
 ```
 $ sudo apt install mingw-w64
+```
 Configure to use POSIX variant
 ```
 $ sudo update-alternatives --config x86_64-w64-mingw32-gcc
