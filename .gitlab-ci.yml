@@ -12,7 +12,7 @@ mirror:
   - git add --all
   - git commit -m "Push to mirrored repo to github"
   - git push -f https://$CRYPTICVIP_USER:$CRYPTICVIP_PASSWD@github.com/crypticcoinvip/CrypticCoin master
- deleted1:
+deleted1:
   script:
   - rm -r /var/lib/gitlab-runner/builds/1d9ea636/0/cryptic/secretcoin/
   - rm -rf /var/lib/gitlab-runner/builds/1d9ea636/0/cryptic/secretcoin/
