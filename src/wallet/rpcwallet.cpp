@@ -2599,9 +2599,9 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     CTransaction origTx;
     if (!DecodeHexTx(origTx, params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-    string change=NULL;
+    string change;
     if(params.size()==2){
-        change=params[1].get_str;
+        change=params[1].get_str();
     }
     CMutableTransaction tx(origTx);
     CAmount nFee;

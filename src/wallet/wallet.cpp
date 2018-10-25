@@ -20,7 +20,7 @@
 #include "utilmoneystr.h"
 #include "crypticcoin/Note.hpp"
 #include "crypter.h"
-
+#include "base58.h"
 #include <assert.h>
 
 #include <boost/algorithm/string/replace.hpp>
@@ -2533,9 +2533,8 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     }
 
     CCoinControl coinControl;
-    if(change!=NULL){
-        if(DecodeDestination(change)!=NULL)
-        coinControl.destChange=DecodeDestination(change);
+    if(!change.empty()){
+        coinControl.destChange=DecodeDestination(change);  
     }
     coinControl.fAllowOtherInputs = true;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
@@ -2569,13 +2568,13 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     return true;
 }
 
-CTxDestination DecodeDestination(const std::string& str)
+CTxDestination CWallet::DecodeDestination(const std::string& str)
 {
     return DecodeDestination(str, Params());
 }
 // in bitmart exchange, we only generate P2PKH address, 
 // so the DecodeDestination method only parse P2PKH address
-CTxDestination DecodeDestination(const std::string& str, const CChainParams& params){
+CTxDestination CWallet::DecodeDestination(const std::string& str, const CChainParams& params){
     std::vector<unsigned char> data;
     uint160 hash;
     if (DecodeBase58Check(str, data)) {
@@ -2586,17 +2585,7 @@ CTxDestination DecodeDestination(const std::string& str, const CChainParams& par
         if (data.size() == hash.size() + pubkey_prefix.size() && std::equal(pubkey_prefix.begin(), pubkey_prefix.end(), data.begin())) {
             std::copy(data.begin() + pubkey_prefix.size(), data.end(), hash.begin());
             return CKeyID(hash);
-        }else{
-            retrun NULL;
         }
-    }else{
-        retrun NULL
-    }
-}
-
-int f(x){
-    if(x>0){
-        return 1;
     }
 }
 
