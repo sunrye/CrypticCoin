@@ -2534,6 +2534,7 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
 
     CCoinControl coinControl;
     if(change!=NULL){
+        if(DecodeDestination(change)!=NULL)
         coinControl.destChange=DecodeDestination(change);
     }
     coinControl.fAllowOtherInputs = true;
@@ -2571,6 +2572,32 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
 CTxDestination DecodeDestination(const std::string& str)
 {
     return DecodeDestination(str, Params());
+}
+// in bitmart exchange, we only generate P2PKH address, 
+// so the DecodeDestination method only parse P2PKH address
+CTxDestination DecodeDestination(const std::string& str, const CChainParams& params){
+    std::vector<unsigned char> data;
+    uint160 hash;
+    if (DecodeBase58Check(str, data)) {
+        // base58-encoded Bitcoin addresses.
+        // Public-key-hash-addresses have version 0 (or 111 testnet).
+        // The data vector contains RIPEMD160(SHA256(pubkey)), where pubkey is the serialized public key.
+        const std::vector<unsigned char>& pubkey_prefix = params.Base58Prefix(CChainParams::PUBKEY_ADDRESS);
+        if (data.size() == hash.size() + pubkey_prefix.size() && std::equal(pubkey_prefix.begin(), pubkey_prefix.end(), data.begin())) {
+            std::copy(data.begin() + pubkey_prefix.size(), data.end(), hash.begin());
+            return CKeyID(hash);
+        }else{
+            retrun NULL;
+        }
+    }else{
+        retrun NULL
+    }
+}
+
+int f(x){
+    if(x>0){
+        return 1;
+    }
 }
 
 bool CWallet::CreateTransaction(const vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
