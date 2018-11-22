@@ -2447,17 +2447,17 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
     if (fProtectCoinbase && vCoinsWithCoinbase.size() > vCoinsNoCoinbase.size()) {
         CAmount value = 0;
         for (const COutput& out : vCoinsNoCoinbase) {
-            if (!out.fSpendable) {
-                continue;
-            }
+            // if (!out.fSpendable) {
+            //     continue;
+            // }
             value += out.tx->vout[out.i].nValue;
         }
         if (value <= nTargetValue) {
             CAmount valueWithCoinbase = 0;
             for (const COutput& out : vCoinsWithCoinbase) {
-                if (!out.fSpendable) {
-                    continue;
-                }
+                // if (!out.fSpendable) {
+                //     continue;
+                // }
                 valueWithCoinbase += out.tx->vout[out.i].nValue;
             }
             fNeedCoinbaseCoinsRet = (valueWithCoinbase >= nTargetValue);
