@@ -2278,7 +2278,7 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                     !IsLockedCoin((*it).first, i) && (pcoin->vout[i].nValue > 0 || fIncludeZeroValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected((*it).first, i)))
 
-                        vCoins.push_back(COutput(pcoin, i, nDepth, (mine & ISMINE_SPENDABLE)));
+                        vCoins.push_back(COutput(pcoin, i, nDepth, true));
             }
         }
     }
@@ -2347,8 +2347,8 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 
     BOOST_FOREACH(const COutput &output, vCoins)
     {
-        // if (!output.fSpendable)
-        //     continue;
+        if (!output.fSpendable)
+            continue;
 
         const CWalletTx *pcoin = output.tx;
 
@@ -2447,17 +2447,17 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
     if (fProtectCoinbase && vCoinsWithCoinbase.size() > vCoinsNoCoinbase.size()) {
         CAmount value = 0;
         for (const COutput& out : vCoinsNoCoinbase) {
-            // if (!out.fSpendable) {
-            //     continue;
-            // }
+            if (!out.fSpendable) {
+                continue;
+            }
             value += out.tx->vout[out.i].nValue;
         }
         if (value <= nTargetValue) {
             CAmount valueWithCoinbase = 0;
             for (const COutput& out : vCoinsWithCoinbase) {
-                // if (!out.fSpendable) {
-                //     continue;
-                // }
+                if (!out.fSpendable) {
+                    continue;
+                }
                 valueWithCoinbase += out.tx->vout[out.i].nValue;
             }
             fNeedCoinbaseCoinsRet = (valueWithCoinbase >= nTargetValue);
@@ -2469,8 +2469,8 @@ bool CWallet::SelectCoins(const CAmount& nTargetValue, set<pair<const CWalletTx*
     {
         BOOST_FOREACH(const COutput& out, vCoins)
         {
-            // if (!out.fSpendable)
-            //      continue;
+            if (!out.fSpendable)
+                 continue;
             nValueRet += out.tx->vout[out.i].nValue;
             setCoinsRet.insert(make_pair(out.tx, out.i));
         }
