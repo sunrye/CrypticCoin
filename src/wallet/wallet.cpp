@@ -2347,8 +2347,8 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int
 
     BOOST_FOREACH(const COutput &output, vCoins)
     {
-        if (!output.fSpendable)
-            continue;
+        // if (!output.fSpendable)
+        //     continue;
 
         const CWalletTx *pcoin = output.tx;
 
