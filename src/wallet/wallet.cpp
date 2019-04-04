@@ -3209,9 +3209,6 @@ bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nC
     }
 
     CCoinControl coinControl;
-    if(!change.empty()){
-        coinControl.destChange=DecodeDestination(change);  
-    }
     coinControl.fAllowOtherInputs = true;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
         coinControl.Select(txin.prevout);
@@ -3255,6 +3252,7 @@ bool CWallet::FundTransactionWithChange(CMutableTransaction& tx, CAmount &nFeeRe
     }
 
     CCoinControl coinControl;
+
     if(!change.empty()){
         coinControl.destChange=DecodeDestination(change);  
     }
