@@ -398,7 +398,7 @@ UniValue getblockheader(const UniValue& params, bool fHelp)
 
 UniValue getblock(const UniValue& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 3)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "getblock \"hash|height\" ( verbosity )\n"
             "\nIf verbosity is 0, returns a string that is serialized, hex-encoded data for the block.\n"
@@ -480,11 +480,11 @@ UniValue getblock(const UniValue& params, bool fHelp)
             verbosity = params[1].get_bool() ? 1 : 0;
         }
     }
-    bool txDetails=false;
+    // bool txDetails=false;
 
-    if(params.size()>2){
-        txDetails=params[2].get_bool();
-    }
+    // if(params.size()>2){
+    //     txDetails=params[2].get_bool();
+    // }
 
     if (verbosity < 0 || verbosity > 2) {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Verbosity must be in range from 0 to 2");
@@ -510,7 +510,7 @@ UniValue getblock(const UniValue& params, bool fHelp)
         return strHex;
     }
 
-    return blockToJSON(block, pblockindex, verbosity >= 2,txDetails);
+    return blockToJSON(block, pblockindex, verbosity >= 2);
 }
 
 UniValue gettxoutsetinfo(const UniValue& params, bool fHelp)
