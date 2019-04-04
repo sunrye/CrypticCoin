@@ -29,7 +29,7 @@
 #include "wallet/asyncrpcoperation_shieldcoinbase.h"
 #include "walletdb.h"
 #include "zcbenchmarks.h"
-
+#include "base58.h"
 #include "sodium.h"
 
 #include <stdint.h>
@@ -2739,9 +2739,9 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() > 2)
         throw runtime_error(
-                            "fundrawtransaction \"hexstring\"\n"
+                            "fundrawtransaction \"hexstring,change address\"\n"
                             "\nAdd inputs to a transaction until it has enough in value to meet its out value.\n"
                             "This will not modify existing inputs, and will add one change output to the outputs.\n"
                             "Note that inputs which were signed may need to be resigned after completion since in/outputs have been added.\n"
@@ -2772,12 +2772,15 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     CTransaction origTx;
     if (!DecodeHexTx(origTx, params[0].get_str()))
         throw JSONRPCError(RPC_DESERIALIZATION_ERROR, "TX decode failed");
-
+    string change;
+    if(params.size()==2){
+        change=params[1].get_str();
+    }
     CMutableTransaction tx(origTx);
     CAmount nFee;
     string strFailReason;
     int nChangePos = -1;
-    if (!pwalletMain->FundTransaction(tx, nFee, nChangePos, strFailReason))
+    if (!pwalletMain->FundTransaction(tx, nFee, nChangePos, change,strFailReason))
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
 
     UniValue result(UniValue::VOBJ);
