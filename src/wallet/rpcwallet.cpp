@@ -2779,7 +2779,7 @@ UniValue fundrawtransaction(const UniValue& params, bool fHelp)
     CAmount nFee;
     string strFailReason;
     int nChangePos = -1;
-    if (!pwalletMain->FundTransaction(tx, nFee, nChangePos, change,strFailReason))
+    if (!pwalletMain->FundTransactionWithChange(tx, nFee, nChangePos, change,strFailReason))
         throw JSONRPCError(RPC_INTERNAL_ERROR, strFailReason);
 
     UniValue result(UniValue::VOBJ);

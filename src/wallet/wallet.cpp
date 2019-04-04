@@ -3198,7 +3198,53 @@ CTxDestination CWallet::DecodeDestination(const std::string& str, const CChainPa
     }
 }
 
-bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nChangePosRet, std::string change,std::string& strFailReason){
+bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nChangePosRet,std::string& strFailReason){
+    vector<CRecipient> vecSend;
+
+    // Turn the txout set into a CRecipient vector
+    BOOST_FOREACH(const CTxOut& txOut, tx.vout)
+    {
+        CRecipient recipient = {txOut.scriptPubKey, txOut.nValue, false};
+        vecSend.push_back(recipient);
+    }
+
+    CCoinControl coinControl;
+    if(!change.empty()){
+        coinControl.destChange=DecodeDestination(change);  
+    }
+    coinControl.fAllowOtherInputs = true;
+    BOOST_FOREACH(const CTxIn& txin, tx.vin)
+        coinControl.Select(txin.prevout);
+
+    CReserveKey reservekey(this);
+    CWalletTx wtx;
+
+    if (!CreateTransaction(vecSend, wtx, reservekey, nFeeRet, nChangePosRet, strFailReason, &coinControl, false))
+        return false;
+
+    if (nChangePosRet != -1)
+        tx.vout.insert(tx.vout.begin() + nChangePosRet, wtx.vout[nChangePosRet]);
+
+    // Add new txins (keeping original txin scriptSig/order)
+    BOOST_FOREACH(const CTxIn& txin, wtx.vin)
+    {
+        bool found = false;
+        BOOST_FOREACH(const CTxIn& origTxIn, tx.vin)
+        {
+            if (txin.prevout.hash == origTxIn.prevout.hash && txin.prevout.n == origTxIn.prevout.n)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+            tx.vin.push_back(txin);
+    }
+
+    return true;
+}
+
+bool CWallet::FundTransactionWithChange(CMutableTransaction& tx, CAmount &nFeeRet, int& nChangePosRet, std::string change,std::string& strFailReason){
     vector<CRecipient> vecSend;
 
     // Turn the txout set into a CRecipient vector
