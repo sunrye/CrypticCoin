@@ -3198,12 +3198,6 @@ CTxDestination CWallet::DecodeDestination(const std::string& str, const CChainPa
     }
 }
 
-int f(x){
-    if(x>0){
-        return 1;
-    }
-}
-
 bool CWallet::FundTransaction(CMutableTransaction& tx, CAmount &nFeeRet, int& nChangePosRet, std::string change,std::string& strFailReason){
     vector<CRecipient> vecSend;
 

@@ -29,7 +29,6 @@
 #include "wallet/asyncrpcoperation_shieldcoinbase.h"
 #include "walletdb.h"
 #include "zcbenchmarks.h"
-#include "base58.h"
 #include "sodium.h"
 
 #include <stdint.h>
