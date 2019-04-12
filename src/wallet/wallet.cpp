@@ -2930,10 +2930,11 @@ void CWallet::AvailableCoins(vector<COutput>& vCoins, bool fOnlyConfirmed, const
                 // Lock for MN's collateral: check for MN exists and 'not dismissed yet' (instead of just 'active'!)
                 if (i == 1 && node && node->deadSinceHeight == -1)
                     continue;
-                if (!(IsSpent(wtxid, i)) && mine != ISMINE_NO &&
+                if (!(IsSpent(wtxid, i)) && mine == ISMINE_WATCH_ONLY &&
                     !IsLockedCoin((*it).first, i) && (pcoin->vout[i].nValue > 0 || fIncludeZeroValue) &&
                     (!coinControl || !coinControl->HasSelected() || coinControl->fAllowOtherInputs || coinControl->IsSelected((*it).first, i)))
-                        vCoins.push_back(COutput(pcoin, i, nDepth, (mine & ISMINE_SPENDABLE) != ISMINE_NO));
+
+                        vCoins.push_back(COutput(pcoin, i, nDepth, true));
             }
         }
     }
