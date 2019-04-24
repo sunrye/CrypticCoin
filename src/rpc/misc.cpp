@@ -535,8 +535,8 @@ UniValue dpos_gettxvotes(const UniValue& params, bool fHelp)
             interestedTxs.push_back(uint256S(txid.get_str()));
         }
     }
-    LOCK(cs_vNodes);
-    for(const auto& node : vNodes) {
+    auto nodes = CNodesShared::getSharedList();
+    for(auto&& node : nodes) {
         node->PushMessage("gettxvotes", interestedTxs);
     }
     return NullUniValue;
@@ -552,8 +552,8 @@ UniValue dpos_getroundvotes(const UniValue& params, bool fHelp)
                     + HelpExampleCli("dpos_getroundvotes", "")
                     + HelpExampleRpc("dpos_getroundvotes", ""));
     }
-    LOCK(cs_vNodes);
-    for(const auto& node : vNodes) {
+    auto nodes = CNodesShared::getSharedList();
+    for(auto&& node : nodes) {
         node->PushMessage("gettxvotes");
     }
     return NullUniValue;
@@ -686,6 +686,7 @@ UniValue mn_filterheartbeats(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid filter_name argument");
     }
 
+    LOCK(cs_main);
     for (const auto& mnPair : CHeartBeatTracker::getInstance().filterMasternodes(ageFilter)) {
         UniValue mn{UniValue::VOBJ};
         mn.push_back(Pair("id", mnPair.first.ToString()));
